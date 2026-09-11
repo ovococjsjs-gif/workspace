@@ -1,0 +1,4 @@
+# Проза и архивные материалы книги не разворачиваются в текстовый diff (файлы отслеживаются, читаются, сравниваются через `git diff --text`).
+projects/shards-of-the-abyss/drafts/** -diff
+projects/shards-of-the-abyss/review/** -diff
+projects/shards-of-the-abyss/legacy/** -diff
