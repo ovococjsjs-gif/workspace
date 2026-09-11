@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><title>Blade — прототип боёвки</title>
+<style>
+html,body{margin:0;height:100%;background:#0b0d10;overflow:hidden;font-family:system-ui,sans-serif;color:#e8e2d0}
+canvas{display:block}
+#hud{position:fixed;inset:0;pointer-events:none}
+.bar{position:absolute;height:10px;background:#222;border:1px solid #000;width:260px}
+.bar i{display:block;height:100%;transition:width .08s}
+#hp{left:24px;top:24px}#hp i{background:#b8382e}
+#st{left:24px;top:40px}#st i{background:#3e9a4a}
+#ehp{right:24px;top:24px}#ehp i{background:#b8382e}
+#est{right:24px;top:40px}#est i{background:#3e9a4a}
+#dir{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:64px;height:64px}
+#dir div{position:absolute;width:14px;height:14px;border-radius:50%;background:#555;opacity:.6}
+#dir .L{left:0;top:25px}#dir .R{right:0;top:25px}#dir .O{left:25px;top:0}#dir .T{left:25px;top:25px}
+#dir .on{background:#f2c14e;opacity:1;box-shadow:0 0 8px #f2c14e}
+#log{position:absolute;left:24px;bottom:24px;font-size:13px;line-height:1.4;opacity:.9;max-width:520px}
+#help{position:absolute;right:24px;bottom:24px;font-size:12px;opacity:.7;text-align:right;line-height:1.5}
+#start{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.6);cursor:pointer;font-size:20px}
+</style></head><body>
+<div id="hud">
+  <div class="bar" id="hp"><i></i></div><div class="bar" id="st"><i></i></div>
+  <div class="bar" id="ehp"><i></i></div><div class="bar" id="est"><i></i></div>
+  <div id="dir"><div class="L"></div><div class="R"></div><div class="O"></div><div class="T"></div></div>
+  <div id="log"></div>
+  <div id="help">WASD — движение · мышь — камера и направление клинка<br>ЛКМ — удар (зажать: силовой) · ПКМ — блок (в момент удара — парирование)<br>Space — уворот · R — рестарт</div>
+</div>
+<div id="start">Кликни, чтобы захватить мышь и начать</div>
+<script type="module" src="/src/main.ts"></script>
+</body></html>
