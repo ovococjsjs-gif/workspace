@@ -6,3 +6,4 @@ node_modules/
 .venv/
 *.pyc
 projects/blade/node_modules/
+projects/blade/package-lock.json
