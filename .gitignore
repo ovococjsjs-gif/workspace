@@ -1,0 +1,46 @@
+# Временное и объёмное — вне git
+scratch/
+.cache/
+
+# Системный мусор
+.DS_Store
+Thumbs.db
+
+# Зависимости и сборки
+node_modules/
+dist/
+build/
+out/
+target/
+coverage/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.env.*
+
+# Кэши
+.cache/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.next/
+.nuxt/
+.vite/
+.parcel-cache/
+
+# Бинарники и крупные артефакты
+*.zip
+*.tar
+*.tar.gz
+*.7z
+*.rar
+*.pdf
+*.mp3
+*.wav
+*.mp4
+*.mov
+*.sqlite
+*.db
+*.log
