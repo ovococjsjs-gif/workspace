@@ -198,11 +198,12 @@ function Views.updateBirds(flock: Flock.Flock)
 			local speed = Vec.len(bird.vel)
 			local look = if speed > 1.0 then Vec.norm(bird.vel) else Vec.new(0, 0, 1)
 			local cf = CFrame.lookAt(toVector(bird.pos), toVector(Vec.add(bird.pos, look)))
-			body.CFrame = cf
-			-- Крыло машет: поворот вокруг продольной оси + наклон в зависимости от скорости.
+			-- Крыло машет: поворот вокруг продольной оси + крен корпуса по скорости.
 			local flap = math.sin(bird.flap) * 0.7
 			local bank = math.clamp(speed / 60, 0, 1) * 0.25
-			wing.CFrame = cf * CFrame.Angles(0, 0, flap) * CFrame.new(0, 0.15 * math.cos(bird.flap), 0)
+			local bodyCf = cf * CFrame.Angles(0, 0, bank)
+			body.CFrame = bodyCf
+			wing.CFrame = bodyCf * CFrame.Angles(0, 0, flap) * CFrame.new(0, 0.15 * math.cos(bird.flap), 0)
 
 			local beacon = birdBeacons[i]
 			if bird.mode == "lost" then

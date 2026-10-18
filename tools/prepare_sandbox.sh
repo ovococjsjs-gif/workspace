@@ -30,6 +30,63 @@ local ColorSequence = __mock.env.ColorSequence
 local ColorSequenceKeypoint = __mock.env.ColorSequenceKeypoint
 local NumberSequenceKeypoint = __mock.env.NumberSequenceKeypoint
 local task = __mock.env.task
+
+-- Типы классов Roblox в песочнице не существуют, но используются в аннотациях.
+-- Объявляем их как any, чтобы luau-analyze мог проверять клиентские файлы.
+type Instance = any
+type Frame = any
+type TextLabel = any
+type TextButton = any
+type ImageLabel = any
+type ScreenGui = any
+type PlayerGui = any
+type Part = any
+type Model = any
+type Camera = any
+type Sound = any
+type Player = any
+type DataStore = any
+type Players = any
+type Vector3 = any
+type Vector2 = any
+type CFrame = any
+type Color3 = any
+type UDim2 = any
+type UDim = any
+type TweenInfo = any
+type NumberSequence = any
+type ColorSequence = any
+type Enum = {
+	Material: any,
+	PartType: any,
+	KeyCode: any,
+	UserInputType: any,
+	CameraType: any,
+	EasingStyle: any,
+	EasingDirection: any,
+	RollOffMode: any,
+	Font: any,
+}
+type UIStroke = any
+type UIGradient = any
+type UIListLayout = any
+type NumberValue = any
+type StringValue = any
+type Folder = any
+type RemoteEvent = any
+type WorldRoot = any
+type PathWaypoint = any
+type ColorSequenceKeypoint = any
+type NumberSequenceKeypoint = any
+type RBXScriptSignal = any
+type InputObject = any
+type Workspace = any
+type Lighting = any
+type SoundService = any
+type RunService = any
+type UserInputService = any
+type ReplicatedStorage = any
+type DataStoreService = any
 '
 
 copy_with_rewrite() {

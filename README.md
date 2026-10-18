@@ -20,7 +20,7 @@
 
 ```bash
 bash tools/build_luau.sh          # соберёт luau, luau-analyze, luau-compile в /tmp/luau/build
-bash tools/run_tests.sh            # юнит-тесты + smoke-тест клиента/сервера + luau-analyze
+bash tools/run_tests.sh            # юнит-тесты + smoke-тест клиента/сервера + luau-analyze (и клиента тоже)
 bash tools/check_syntax.sh         # luau-compile по всем файлам src/ и tests/
 bash tools/smoke.sh                # клиент и сервер против мока Roblox API
 bash tools/probe.sh                # headless-прогон забега: кольца, счёт, комбо
@@ -38,7 +38,14 @@ bash tools/rojo_build.sh           # сборка place-файла через Ro
 TESTS PASSED: 48/48
 SMOKE: проверок 27, провалов 0
 luau-analyze: ошибок нет
+luau-analyze (клиент/сервер): ошибок нет
 ```
+
+Статический анализ покрывает **всё**, включая клиент и сервер: в песочнице
+(`tools/prepare_sandbox.sh`) им подставляются заглушки Roblox-типов
+(`Instance`, `Vector3`, `CFrame`, `Frame`, …), поэтому анализатор видит
+настоящие поля структур и ловит опечатки вроде `ring.ring.id` вместо
+`ring.id`.
 
 `tools/scenario.sh` печатает состояние забега по секундам — это основной
 инструмент балансировки (см. раздел 5).
@@ -245,7 +252,7 @@ src/server/Main.server.luau — DataStore, проверка правдоподо
 |---|---|---|
 | `tools/build_luau.sh` | собирает Luau CLI из исходников | есть интерпретатор для тестов |
 | `tools/prepare_sandbox.sh` | готовит плоскую песочницу для CLI | тесты запускаются без Roblox |
-| `tools/run_tests.sh` | юнит-тесты + `luau-analyze` | логика и типы корректны |
+| `tools/run_tests.sh` | юнит-тесты + smoke + `luau-analyze` (логика, клиент и сервер) | логика и типы корректны |
 | `tools/check_syntax.sh` | `luau-compile` по всем `src/` и `tests/` | нет синтаксических ошибок в клиенте/сервере |
 | `tools/probe.sh` | один забег с подробным логом колец | кольца засчитываются, счёт растёт |
 | `tools/scenario.sh <режим> [сек]` | забег по сценарию пилота | баланс: спокойный выигрывает, паникующий проигрывает |
@@ -272,7 +279,8 @@ reckless: счёт=1020,  колец=24, чистых=0,  живо 3/18  -> ИГ
 **Проверено в репозитории (команды + вывод в логах):**
 
 * `tools/run_tests.sh` → `TESTS PASSED: 48/48`, `SMOKE: проверок 27, провалов 0`,
-  `luau-analyze: ошибок нет`
+  `luau-analyze: ошибок нет` (логика + тесты) и `luau-analyze (клиент/сервер):
+  ошибок нет`
 * `tools/check_syntax.sh` → синтаксис без ошибок (24 файла)
 * `tools/smoke.sh` → клиентский и серверный слои **выполняются** headless против
   мока Roblox API (`tools/roblox_mock.luau`): интерфейс строится, 18 птиц и

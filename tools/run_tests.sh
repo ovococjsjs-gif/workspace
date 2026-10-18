@@ -57,6 +57,27 @@ if [ -x "$ANALYZE_BIN" ]; then
     exit 1
   fi
   echo "luau-analyze: ошибок нет"
+
+  # Клиент и сервер тоже анализируются — в песочнице им подставлены
+  # заглушки Roblox-типов (см. tools/prepare_sandbox.sh).
+  # Два известных ограничения песочницы, которые фильтруются:
+  #   * "Unknown type 'Enum.*'" — локаль-значение `Enum` перекрывает тип-алиас;
+  #   * LocalUnused/ImportUnused — шум от заголовка мока и GUI-меток,
+  #     которые используются через Parent, а не через переменную.
+  echo ""
+  echo "== Статический анализ клиента и сервера (luau-analyze) =="
+  CLIENT_FILES=()
+  for name in Audio HUD Input Main MainServer Views World; do
+    CLIENT_FILES+=("$SANDBOX/$name.luau")
+  done
+  CLIENT_OUT="$("$ANALYZE_BIN" --formatter=plain "${CLIENT_FILES[@]}" 2>&1 || true)"
+  CLIENT_FILTERED="$(echo "$CLIENT_OUT" | grep -vE 'LocalUnused|ImportUnused' | grep -vE 'Unknown type .Enum\.' || true)"
+  if [ -n "$CLIENT_FILTERED" ]; then
+    echo "$CLIENT_FILTERED"
+    echo "!! luau-analyze нашёл проблемы в клиенте/сервере — см. вывод выше" >&2
+    exit 1
+  fi
+  echo "luau-analyze (клиент/сервер): ошибок нет"
 else
   echo ""
   echo "!! luau-analyze не найден ($ANALYZE_BIN) — статический анализ пропущен" >&2

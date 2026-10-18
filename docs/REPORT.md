@@ -53,13 +53,15 @@ Roblox-API**. Roblox-слой только рисует и читает ввод
 
 **Доказательство:** `bash tools/run_tests.sh` → `TESTS PASSED: 48/48`
 (лог: [`evidence/run_tests.log`](evidence/run_tests.log)), статический анализ
-`luau-analyze` — ошибок нет.
+`luau-analyze` — ошибок нет **и по клиенту/серверу тоже**: в песочнице им
+подставляются заглушки Roblox-типов, поэтому анализатор проверяет и
+клиентские обращения к полям структур.
 
 ### 1.2. Проверки, которые можно запускать без Roblox
 
 | Команда | Что доказывает | Лог |
 |---|---|---|
-| `bash tools/run_tests.sh` | 48 юнит-тестов + `luau-analyze` без ошибок | [`evidence/run_tests.log`](evidence/run_tests.log) |
+| `bash tools/run_tests.sh` | 48 юнит-тестов + `luau-analyze` без ошибок (логика, тесты, клиент и сервер) | [`evidence/run_tests.log`](evidence/run_tests.log) |
 | `bash tools/check_syntax.sh` | `luau-compile` проходит по всем 24 файлам `src/` и `tests/` | [`evidence/check_syntax.log`](evidence/check_syntax.log) |
 | `bash tools/smoke.sh` | клиент и сервер **выполняются** headless против мока Roblox API: 18 проверок, 0 провалов | [`evidence/smoke.log`](evidence/smoke.log) |
 | `bash tools/verify.sh` | все проверки разом + сводка «ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ» | [`evidence/verify.log`](evidence/verify.log) |
@@ -68,6 +70,7 @@ Roblox-API**. Roblox-слой только рисует и читает ввод
 | `bash tools/scenario.sh calm` | «спокойный пилот»: 36 колец, 35 чистых, стая цела (18/18), счёт 28440 | [`evidence/scenario_calm.log`](evidence/scenario_calm.log) |
 | `bash tools/scenario.sh booster` | «пилот с рывками»: 37 колец, 36 чистых, стая цела, счёт 29340 | [`evidence/scenario_booster.log`](evidence/scenario_booster.log) |
 | `bash tools/scenario.sh medium` | «средний пилот» (задержка реакции 0.2 с, шум в управлении): 35 колец, 33 чистых, счёт 25560 | — |
+| `bash tools/scenario.sh calm 300` | «долгий забег» (5 минут): 139 колец, 115 чистых, стая цела (18/18) — поздние фазы не ломают игру | [`evidence/scenario_calm_5min.log`](evidence/scenario_calm_5min.log) |
 | `bash tools/scenario.sh reckless` | «паникующий пилот»: стая рассыпается 18→3, забег завершается проигрышем | [`evidence/scenario_reckless.log`](evidence/scenario_reckless.log) |
 
 `tools/scenario.sh` — это, по сути, «автотест баланса»: два сценария пилота
