@@ -39,6 +39,9 @@ function Race.sort(entries: { Entry }): { Entry }
 		if a.finished ~= b.finished then
 			return a.finished
 		end
+		if a.finished and b.finished and a.place ~= nil and b.place ~= nil and a.place ~= b.place then
+			return a.place < b.place
+		end
 		if a.score ~= b.score then
 			return a.score > b.score
 		end

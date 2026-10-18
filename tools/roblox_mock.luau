@@ -246,9 +246,8 @@ EnumType.EasingDirection = makeEnum({ Out = "Out", In = "In" })
 EnumType.RollOffMode = makeEnum({ InverseTapered = "InverseTapered", Linear = "Linear" })
 EnumType.TextXAlignment = makeEnum({ Left = "Left", Center = "Center", Right = "Right" })
 EnumType.TextYAlignment = makeEnum({ Top = "Top", Center = "Center", Bottom = "Bottom" })
-EnumType.ProductInfoResponse = makeEnum({
-	Success = "Success",
-	AlreadyProcessed = "AlreadyProcessed",
+EnumType.ProductPurchaseDecision = makeEnum({
+	PurchaseGranted = "PurchaseGranted",
 	NotProcessedYet = "NotProcessedYet",
 })
 
@@ -543,12 +542,22 @@ local function buildServices(shared)
 	userInputService.MouseEnabled = true
 
 	local dataStoreService = makeInstance("DataStoreService", { Name = "DataStoreService" })
-	dataStoreService.GetDataStore = function()
+	local storeData = {}
+	dataStoreService.GetDataStore = function(_self, storeName)
+		storeData[storeName] = storeData[storeName] or {}
+		local bucket = storeData[storeName]
 		return {
-			GetAsync = function()
-				return 0
+			GetAsync = function(_store, key)
+				return bucket[key]
 			end,
-			SetAsync = function() end,
+			SetAsync = function(_store, key, value)
+				bucket[key] = value
+			end,
+			UpdateAsync = function(_store, key, transform)
+				local value = transform(bucket[key])
+				bucket[key] = value
+				return value
+			end,
 		}
 	end
 
@@ -564,13 +573,13 @@ local function buildServices(shared)
 		rawset(marketplaceService, "__promptedProduct", { player = player, id = id, info = info })
 	end
 
-	-- GameplayService: проверка владения game pass'ом.
-	local gameplayService = makeInstance("GameplayService", { Name = "GameplayService" })
-	gameplayService.__ownedPasses = {}
-	gameplayService.PlayerHasPassAsync = function(_self, userId, id)
-		local owned = rawget(gameplayService, "__ownedPasses")
+	-- MarketplaceService: проверка владения game pass'ом.
+	marketplaceService.__ownedPasses = {}
+	marketplaceService.UserOwnsGamePassAsync = function(_self, userId, id)
+		local owned = rawget(marketplaceService, "__ownedPasses")
 		return owned[userId] ~= nil and owned[userId][id] == true
 	end
+	marketplaceService.PromptGamePassPurchaseFinished = signal("PromptGamePassPurchaseFinished")
 
 	services.Players = players
 	services.RunService = runService
@@ -582,7 +591,6 @@ local function buildServices(shared)
 	services.DataStoreService = dataStoreService
 	services.SoundService = soundService
 	services.MarketplaceService = marketplaceService
-	services.GameplayService = gameplayService
 	return services
 end
 

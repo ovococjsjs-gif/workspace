@@ -30,6 +30,15 @@ T.test("рейтинг сортируется по очкам, финиширо�
 	T.eq(sorted[3].name, "Аня", "третий по очкам")
 end)
 
+T.test("финишировавшие ранжируются по порядку финиша, не по счёту", function()
+	local first = entry(1, "Первый", 100, 500, true)
+	local second = entry(2, "Второй", 900, 900, true)
+	first.place = 1
+	second.place = 2
+	local ordered = Race.sort({ first, second })
+	T.eq(ordered[1].name, "Первый", "раньше финишировал — выше, даже если счёт меньше")
+end)
+
 T.test("при равных очках выше тот, кто дальше улетел", function()
 	local sorted = Race.sort({
 		entry(1, "Аня", 200, 400, false),

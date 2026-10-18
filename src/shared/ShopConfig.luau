@@ -34,60 +34,62 @@ export type ShopConfig = {
 	items: { ShopEntry },
 }
 
-local ShopConfig: ShopConfig = {
-	passes = {
-		goldenBoost = 0,
-		windproof = 0,
-		fastStart = 0,
-		magnetPlus = 0,
-		calm = 0,
+local ShopConfig = {}
+
+ShopConfig.passes = {
+	goldenBoost = 0,
+	windproof = 0,
+	fastStart = 0,
+	magnetPlus = 0,
+	calm = 0,
+}
+
+ShopConfig.products = {
+	boostPack = 0,
+}
+
+ShopConfig.items = {
+	{
+		key = "goldenBoost",
+		title = "ЗОЛОТОЙ РЫВОК",
+		desc = "Перезарядка рывка вдвое короче",
+		price = 49,
+		repeatable = false,
 	},
-	products = {
-		boostPack = 0,
+	{
+		key = "windproof",
+		title = "ВЕТРОКРОМ",
+		desc = "Ветер больше не сносит вожаку и стаю",
+		price = 79,
+		repeatable = false,
 	},
-	items = {
-		{
-			key = "goldenBoost",
-			title = "ЗОЛОТОЙ РЫВОК",
-			desc = "Перезарядка рывка вдвое короче",
-			price = 49,
-			repeatable = false,
-		},
-		{
-			key = "windproof",
-			title = "ВЕТРОКРОМ",
-			desc = "Ветер больше не сносит вожаку и стаю",
-			price = 79,
-			repeatable = false,
-		},
-		{
-			key = "fastStart",
-			title = "ФОРСАЖ",
-			desc = "Забег начинается с комбо x2",
-			price = 99,
-			repeatable = false,
-		},
-		{
-			key = "magnetPlus",
-			title = "МАГНИТ+",
-			desc = "Радиус подбора потерянных птиц в полтора раза больше",
-			price = 59,
-			repeatable = false,
-		},
-		{
-			key = "calm",
-			title = "ХОЗЯЙКА",
-			desc = "Стая нервничает заметно меньше: меньше потерь",
-			price = 89,
-			repeatable = false,
-		},
-		{
-			key = "boostPack",
-			title = "ЗАРЯДЫ РЫВКА x3",
-			desc = "Три мгновенных рывка (можно покупать снова)",
-			price = 25,
-			repeatable = true,
-		},
+	{
+		key = "fastStart",
+		title = "ФОРСАЖ",
+		desc = "Забег начинается с комбо x2",
+		price = 99,
+		repeatable = false,
+	},
+	{
+		key = "magnetPlus",
+		title = "МАГНИТ+",
+		desc = "Радиус подбора потерянных птиц в полтора раза больше",
+		price = 59,
+		repeatable = false,
+	},
+	{
+		key = "calm",
+		title = "ХОЗЯЙКА",
+		desc = "Стая нервничает заметно меньше: меньше потерь",
+		price = 89,
+		repeatable = false,
+	},
+	{
+		key = "boostPack",
+		title = "ЗАРЯДЫ РЫВКА x3",
+		desc = "Три мгновенных рывка (можно покупать снова)",
+		price = 25,
+		repeatable = true,
 	},
 }
 

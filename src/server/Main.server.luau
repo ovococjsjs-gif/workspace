@@ -15,7 +15,7 @@ local DataStoreService = game:GetService("DataStoreService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local MarketplaceService = game:GetService("MarketplaceService")
-local GameplayService = game:GetService("GameplayService")
+
 
 -- Общие модули (собранные Rojo в ReplicatedStorage.FlockShared).
 local Shared = ReplicatedStorage:WaitForChild("FlockShared", 10)
@@ -195,8 +195,9 @@ local function loadDailyBoard()
 		return store:GetAsync("board")
 	end)
 	if ok and type(data) == "table" then
-		for userId, entry in pairs(data) do
-			if type(entry) == "table" and typeof(entry.score) == "number" then
+		for userIdKey, entry in pairs(data) do
+			local userId = tonumber(userIdKey)
+			if userId and type(entry) == "table" and typeof(entry.score) == "number" then
 				dailyBoard[userId] = {
 					userId = userId,
 					name = tostring(entry.name or "?"),
@@ -224,24 +225,40 @@ local function broadcastDailyBoard()
 	end
 end
 
-local function saveDailyBoard()
-	local store = DataStoreService:GetDataStore("flock_daily_" .. Daily.todayKey())
-	local data: { [number]: { name: string, score: number } } = {}
-	for userId, entry in dailyBoard do
-		data[userId] = { name = entry.name, score = entry.score }
-	end
-	pcall(function()
-		store:SetAsync("board", data)
-	end)
-end
-
---- Записывает результат игрока в таблицу дня (если он лучше прежнего).
+--- Записывает результат игрока в таблицу дня атомарно: несколько серверов
+--- не затирают результаты друг друга. Возвращает актуальную таблицу из DataStore.
 local function recordDaily(player: Player, score: number)
 	loadDailyBoard()
-	local entry = dailyBoard[player.UserId]
-	if not entry or score > entry.score then
-		dailyBoard[player.UserId] = { userId = player.UserId, name = player.Name, score = score }
-		saveDailyBoard()
+	local store = DataStoreService:GetDataStore("flock_daily_" .. Daily.todayKey())
+	local userKey = tostring(player.UserId)
+	local ok, data = pcall(function()
+		return store:UpdateAsync("board", function(old: any)
+			local board = if type(old) == "table" then old else {}
+			local previous = board[userKey]
+			if type(previous) ~= "table" or typeof(previous.score) ~= "number" or score > previous.score then
+				board[userKey] = { name = player.Name, score = score }
+			end
+			return board
+		end)
+	end)
+	if ok and type(data) == "table" then
+		dailyBoard = {}
+		for userIdKey, entry in pairs(data) do
+			local userId = tonumber(userIdKey)
+			if userId and type(entry) == "table" and typeof(entry.score) == "number" then
+				dailyBoard[userId] = {
+					userId = userId,
+					name = tostring(entry.name or "?"),
+					score = entry.score,
+				}
+			end
+		end
+	else
+		-- DataStore временно недоступен — хотя бы сохраняем локально на этом сервере.
+		local entry = dailyBoard[player.UserId]
+		if not entry or score > entry.score then
+			dailyBoard[player.UserId] = { userId = player.UserId, name = player.Name, score = score }
+		end
 	end
 	broadcastDailyBoard()
 end
@@ -434,7 +451,7 @@ local function refreshPasses(player: Player)
 	for key, id in pairs(ShopConfig.passes) do
 		if id ~= 0 then
 			local ok, owns = pcall(function()
-				return GameplayService:PlayerHasPassAsync(player.UserId, id)
+				return MarketplaceService:UserOwnsGamePassAsync(player.UserId, id)
 			end)
 			if ok and owns == true then
 				permSet(player, key, true)
@@ -444,6 +461,12 @@ local function refreshPasses(player: Player)
 	pushPerms(player)
 end
 
+MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player: Player, _passId: number, purchased: boolean)
+	if purchased then
+		refreshPasses(player)
+	end
+end)
+
 Players.PlayerAdded:Connect(function(player: Player)
 	refreshPasses(player)
 	-- Подгружаем купленные заряды рывка.
@@ -451,8 +474,13 @@ Players.PlayerAdded:Connect(function(player: Player)
 		local ok, value = pcall(function()
 			return chargeStore:GetAsync("c_" .. tostring(player.UserId))
 		end)
-		if ok and typeof(value) == "number" then
-			charges[player] = math.max(0, math.floor(value))
+		if ok then
+			if typeof(value) == "number" then
+				-- Совместимость с ранними тестовыми/предыдущими данными.
+				charges[player] = math.max(0, math.floor(value))
+			elseif type(value) == "table" and typeof(value.charges) == "number" then
+				charges[player] = math.max(0, math.floor(value.charges))
+			end
 			pushPerms(player)
 		end
 	end)
@@ -465,13 +493,21 @@ end)
 
 --- Трата заряда мгновенного рывка (клиент сообщает об использовании).
 useChargeRemote.OnServerEvent:Connect(function(player: Player)
-	local left = charges[player] or 0
-	if left > 0 then
-		left -= 1
-		charges[player] = left
-		pcall(function()
-			chargeStore:SetAsync("c_" .. tostring(player.UserId), left)
+	-- Сохраняем реестр PurchaseId при расходовании, иначе повторный чек
+	-- после списания мог бы повторно выдать уже обработанную покупку.
+	local ok, record = pcall(function()
+		return chargeStore:UpdateAsync("c_" .. tostring(player.UserId), function(old: any)
+			local data = if type(old) == "table" then old else { charges = if typeof(old) == "number" then old else 0, receipts = {} }
+			data.receipts = if type(data.receipts) == "table" then data.receipts else {}
+			local left = math.max(0, math.floor(if typeof(data.charges) == "number" then data.charges else 0))
+			if left > 0 then
+				data.charges = left - 1
+			end
+			return data
 		end)
+	end)
+	if ok and type(record) == "table" and typeof(record.charges) == "number" then
+		charges[player] = math.max(0, math.floor(record.charges))
 	end
 	pushPerms(player)
 end)
@@ -530,19 +566,36 @@ end
 MarketplaceService.ProcessReceipt = function(receiptInfo: any)
 	local player = game.Players:GetPlayerByUserId(receiptInfo.PlayerId)
 	if not player then
-		return Enum.ProductInfoResponse.NotProcessedYet
+		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end
 	local key = productKeyFor(receiptInfo.ProductId)
 	if not key then
-		return Enum.ProductInfoResponse.AlreadyProcessed
+		return Enum.ProductPurchaseDecision.PurchaseGranted
 	end
-	-- Повторяемая покупка: прибавляем заряды мгновенного рывка.
-	local left = (charges[player] or 0) + 3
-	charges[player] = left
-	pcall(function()
-		chargeStore:SetAsync("c_" .. tostring(player.UserId), left)
+	-- Идемпотентная и атомарная выдача: Roblox может повторно вызвать
+	-- ProcessReceipt, пока не получит PurchaseGranted. Не выдаём один чек дважды.
+	local receiptId = tostring(receiptInfo.PurchaseId)
+	if receiptId == "nil" or receiptId == "" then
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+	local storeKey = "c_" .. tostring(player.UserId)
+	local ok, record = pcall(function()
+		return chargeStore:UpdateAsync(storeKey, function(old: any)
+			local data = if type(old) == "table" then old else { charges = if typeof(old) == "number" then old else 0, receipts = {} }
+			data.receipts = if type(data.receipts) == "table" then data.receipts else {}
+			if not data.receipts[receiptId] then
+				data.receipts[receiptId] = true
+				data.charges = math.max(0, math.floor(if typeof(data.charges) == "number" then data.charges else 0)) + 3
+			end
+			return data
+		end)
 	end)
+	if not ok or type(record) ~= "table" or typeof(record.charges) ~= "number" then
+		-- Не подтверждаем покупку, чтобы Roblox повторил чек.
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+	charges[player] = math.max(0, math.floor(record.charges))
 	pushPerms(player)
-	return Enum.ProductInfoResponse.PurchaseSuccess
+	return Enum.ProductPurchaseDecision.PurchaseGranted
 end
 

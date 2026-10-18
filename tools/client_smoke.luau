@@ -506,8 +506,15 @@ step("Гонка: общий раунд, живой рейтинг и магаз
 	-- Обработка чека: сервер должен выдать заряды мгновенного рывка.
 	local receipt = services.MarketplaceService.ProcessReceipt
 	if type(receipt) == "function" then
-		local response = receipt({ PlayerId = player.UserId, ProductId = 4243 })
-		check(response ~= nil, "обработчик чека ответил: " .. tostring(response))
+		local receiptInfo = { PlayerId = player.UserId, ProductId = 4243, PurchaseId = "test-purchase-1" }
+		local response = receipt(receiptInfo)
+		check(response == Mock.env.Enum.ProductPurchaseDecision.PurchaseGranted, "обработчик чека ответил PurchaseGranted: " .. tostring(response))
+		-- Roblox может повторить один и тот же чек: повтор не должен удваивать валюту.
+		local duplicateResponse = receipt(receiptInfo)
+		check(
+			duplicateResponse == Mock.env.Enum.ProductPurchaseDecision.PurchaseGranted,
+			"повторный чек безопасно подтверждён"
+		)
 		for _ = 1, 3 do
 			for _, fn in ipairs(heartbeat.__signals) do
 				fn(1 / 60)
@@ -515,7 +522,7 @@ step("Гонка: общий раунд, живой рейтинг и магаз
 		end
 		check(
 			Main.getState().perms.boostCharges == 3,
-			"после чека клиент получил 3 заряда рывка: " .. tostring(Main.getState().perms.boostCharges)
+			"один PurchaseId выдал ровно 3 заряда (не дублировал): " .. tostring(Main.getState().perms.boostCharges)
 		)
 	else
 		check(false, "сервер не назначил обработчик ProcessReceipt")
@@ -525,8 +532,8 @@ step("Гонка: общий раунд, живой рейтинг и магаз
 	-- Настраиваем ID покупки (в репозитории он = 0, плейсхолдер).
 	local ShopConfig = require("./ShopConfig")
 	ShopConfig.passes.goldenBoost = 4242
-	local gameplay = services.GameplayService
-	local owned = rawget(gameplay, "__ownedPasses")
+	local marketplace = services.MarketplaceService
+	local owned = rawget(marketplace, "__ownedPasses")
 	owned[player.UserId] = { [4242] = true }
 	for _, fn in ipairs(services.Players.PlayerAdded.__signals) do
 		fn(player)
