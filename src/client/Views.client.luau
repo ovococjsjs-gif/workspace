@@ -248,6 +248,14 @@ local function destroyRingVisual(id: number)
 	ringVisuals[id] = nil
 end
 
+--- Запускает вспышку кольца (расходится и гаснет) в момент прохождения.
+function Views.popRing(id: number, time: number)
+	local visual = ringVisuals[id]
+	if visual then
+		visual.popAt = time
+	end
+end
+
 --- Создаёт/обновляет визуал колец; удаляет визуалы исчезнувших колец.
 function Views.updateRings(ringWorld: Rings.RingWorld, dt: number, time: number)
 	local alive: { [number]: boolean } = {}
@@ -276,7 +284,7 @@ function Views.updateRings(ringWorld: Rings.RingWorld, dt: number, time: number)
 				0.86
 			)
 			membrane.LightEmission = 0.25
-			ringVisuals[ring.id] = { segments = segments, membrane = membrane, id = ring.id }
+			ringVisuals[ring.id] = { segments = segments, membrane = membrane, id = ring.id, popAt = nil }
 			visual = ringVisuals[ring.id]
 		end
 
@@ -304,6 +312,29 @@ function Views.updateRings(ringWorld: Rings.RingWorld, dt: number, time: number)
 		local count = #visual.segments
 		local spin = time * 0.6 + ring.id
 		local visualRadius = ring.radius * (if ring.state == "crossed" then math.max(window, 0.12) else 1)
+
+		-- Вспышка в момент прохождения: кольцо расходится и гаснет.
+		local pop = -1
+		if visual.popAt then
+			pop = time - visual.popAt
+			if pop > 0.5 then
+				visual.popAt = nil
+				pop = -1
+				for _, segment in visual.segments do
+					segment.Transparency = 0
+				end
+				visual.membrane.Transparency = 0.86
+			else
+				visualRadius = visualRadius * (1 + math.max(pop, 0) * 2.2)
+			end
+		end
+		if pop >= 0 then
+			local fade = math.clamp(pop * 2.4, 0, 1)
+			for _, segment in visual.segments do
+				segment.Transparency = fade
+			end
+			visual.membrane.Transparency = math.clamp(0.86 + fade * 0.14, 0, 1)
+		end
 		for i = 1, count do
 			local angle = (i - 1) / count * math.pi * 2 + spin
 			local cosA, sinA = math.cos(angle), math.sin(angle)

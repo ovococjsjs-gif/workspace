@@ -167,6 +167,7 @@ local function handleEvent(event: Game.GameEvent)
 
 	for _, ring in event.rings do
 		if ring.result == "perfect" then
+			Views.popRing(ring.ring.id, state.game and state.game.time or 0)
 			HUD.toast("ЧИСТО! " .. tostring(ring.passedCount) .. "/" .. tostring(ring.totalCount) .. "  +" .. tostring(ring.points), HUD.COLOR_GOOD)
 			HUD.flashScreen(HUD.COLOR_GOOD, 0.22)
 			HUD.setCombo(state.game and state.game.score.combo or 1)
