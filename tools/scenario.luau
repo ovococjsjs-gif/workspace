@@ -11,6 +11,8 @@ local Vec = require("./Vec")
 local Course = require("./Course")
 
 local MODE = "__MODE__" -- подставляется скриптом запуска
+--- История позиций лидера (для задержки реакции "среднего" пилота).
+local history: { { x: number, z: number } } = {}
 local SECONDS = __SECONDS__ -- длительность забега, сек
 
 local function pilot(g: Game.Game, mode: string): Game.Input
@@ -23,6 +25,34 @@ local function pilot(g: Game.Game, mode: string): Game.Input
 		x = math.sin(g.time * 5.5)
 		y = math.sin(g.time * 3.1) * 0.6
 		z = 0.5 + 0.5 * math.sin(g.time * 2.3)
+	elseif mode == "medium" then
+		-- "Средний" игрок: реагирует с задержкой (как человек), ошибается
+		-- по курсу, иногда перебирает газ, иногда дёргает стиком.
+		local err = Flock.averageSlotError(g.flock, {
+			leaderPos = g.leaderPos,
+			courseForward = cp.tangent,
+			courseRight = cp.right,
+			wind = Vec.zero(),
+			time = g.time,
+		})
+		z = if err > 30 then 0.4 elseif err > 18 then 0.75 else 1.0
+
+		-- Задержка реакции: корректируем по "позавчерашней" позиции.
+		local lag = 12 -- кадров (0.2 с)
+		table.insert(history, { x = g.leaderPos.x, z = g.leaderPos.z })
+		if #history > lag then
+			table.remove(history, 1)
+		end
+		local old = history[1] or { x = g.leaderPos.x, z = g.leaderPos.z }
+		local oldCp = Course.pointAt(old.z)
+		local oldLateral = old.x - oldCp.pos.x
+		local noise = math.sin(g.time * 0.9) * 0.3 + math.sin(g.time * 2.7) * 0.1
+		x = math.clamp(oldLateral * 0.04 + noise, -1, 1)
+		y = math.clamp(y + math.sin(g.time * 1.7) * 0.15, -1, 1)
+		-- Изредка "спугнуть" стаю резким движением.
+		if g.time % 23 < 0.05 then
+			x = if g.time % 46 < 23 then 1 else -1
+		end
 	elseif mode == "zigzag" then
 		x = if g.time % 4 < 2 then 1 else -1
 		z = 1
