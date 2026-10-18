@@ -32,6 +32,9 @@ export type Bird = {
 export type Flock = {
 	birds: { Bird },
 	count: number,
+	rng: Rng.Rng,
+	--- Текущий уровень паники стаи (0..1).
+	panic: number,
 }
 
 export type FlockContext = {
@@ -40,6 +43,8 @@ export type FlockContext = {
 	courseRight: Vec3,
 	wind: Vec3,
 	time: number,
+	--- Насколько вожак "нервничает" (0..1): резкие манёвры пугают стаю.
+	leaderAgitation: number?,
 }
 
 export type FlockEvents = {
@@ -60,8 +65,8 @@ local Flock = {}
 function Flock.slotOffset(slot: number): (number, number, number)
 	local rank = math.floor((slot + 1) / 2)
 	local side = if slot % 2 == 0 then 1 else -1
-	local lateral = side * (5.0 + rank * 5.0)
-	local back = 8.0 + rank * 6.0
+	local lateral = side * (4.0 + rank * 2.2)
+	local back = 7.0 + rank * 4.4
 	local vertical = ((slot % 3) - 1) * 2.4
 	return lateral, back, vertical
 end
@@ -82,7 +87,7 @@ function Flock.new(count: number?, seed: number?): Flock
 			lostTime = 0,
 		}
 	end
-	return { birds = birds, count = n }
+	return { birds = birds, count = n, rng = rng, panic = 0 }
 end
 
 --- Целевая позиция слота в мире.
@@ -101,6 +106,24 @@ function Flock.step(flock: Flock, dt: number, ctx: FlockContext): FlockEvents
 	local cfg = Config.bird
 	local birds = flock.birds
 
+	-- Уровень паники: растёт от нервозности вожака, затухает со временем.
+	local agitation = ctx.leaderAgitation or 0
+	flock.panic = math.max(flock.panic * math.max(0, 1 - dt * 0.7), agitation)
+
+	-- Сильная паника вырывает птиц из строя: они разлетаются и их надо собирать.
+	if flock.panic > Config.bird.panicBreakAt then
+		local chance = (flock.panic - Config.bird.panicBreakAt) * Config.bird.panicBreakRate * dt
+		for i = 1, #birds do
+			local bird = birds[i]
+			if bird.mode == "formation" and Rng.nextFloat(flock.rng) < chance then
+				bird.mode = "lost"
+				bird.lostTime = 0
+				bird.vel = Vec.add(bird.vel, Rng.nextInSphere(flock.rng, 14.0))
+				table.insert(events.scattered, i)
+			end
+		end
+	end
+
 	for i = 1, #birds do
 		local bird = birds[i]
 		bird.flap = bird.flap + dt * (9.0 + bird.seed * 4.0)
@@ -109,8 +132,17 @@ function Flock.step(flock: Flock, dt: number, ctx: FlockContext): FlockEvents
 			-- Дрейф по ветру + медленное падение.
 			bird.vel = Vec.add(bird.vel, Vec.scale(ctx.wind, dt))
 			bird.vel = Vec.add(bird.vel, Vec.new(0, -cfg.lostSink * dt, 0))
+			-- Трение: без него ветром относит потерянную птицу бесконечно.
+			bird.vel = Vec.scale(bird.vel, math.max(0, 1 - cfg.lostDrag * dt))
 			bird.vel = Vec.clampMag(bird.vel, cfg.maxSpeed)
 			bird.pos = Vec.add(bird.pos, Vec.scale(bird.vel, dt))
+			-- Земля: птица не проваливается (даже потерянная).
+			if bird.pos.y < 2.0 then
+				bird.pos.y = 2.0
+				if bird.vel.y < 0 then
+					bird.vel.y = 0
+				end
+			end
 			bird.lostTime += dt
 
 			if Vec.dist(ctx.leaderPos, bird.pos) <= cfg.rallyRadius then
@@ -128,7 +160,7 @@ function Flock.step(flock: Flock, dt: number, ctx: FlockContext): FlockEvents
 			-- Ветер слегка сносит даже в строю.
 			accel = Vec.add(accel, Vec.scale(ctx.wind, cfg.windOnBirds * 0.12))
 
-			-- Расталкивание.
+				-- Расталкивание.
 			for j = 1, #birds do
 				if j ~= i then
 					local other = birds[j]
@@ -138,6 +170,12 @@ function Flock.step(flock: Flock, dt: number, ctx: FlockContext): FlockEvents
 						accel = Vec.add(accel, Vec.scale(push, cfg.separationGain))
 					end
 				end
+			end
+
+			-- Паника: если вожак дёргается, стая вскидывается в стороны.
+			if cfg.panicGain > 0 and flock.panic > 0.02 then
+				local jitter = Rng.nextInSphere(flock.rng, flock.panic * cfg.panicGain * dt)
+				accel = Vec.add(accel, jitter)
 			end
 
 			accel = Vec.clampMag(accel, cfg.maxAccel)
@@ -194,6 +232,38 @@ function Flock.averageDistance(flock: Flock, leaderPos: Vec3): number
 	local sum = 0
 	for i = 1, #flock.birds do
 		sum += Vec.dist(flock.birds[i].pos, leaderPos)
+	end
+	return sum / #flock.birds
+end
+
+--- Среднее отставание стаи по курсу (насколько птицы отстали от лидера ВПЕРЁД по курсу).
+--- Это честная метрика «успевает ли стая»: расстояние до лидера включает
+--- и естественный разброс строя, а отставание по курсу — нет.
+function Flock.averageLag(flock: Flock, leaderPos: Vec3): number
+	if #flock.birds == 0 then
+		return 0
+	end
+	local sum = 0
+	for i = 1, #flock.birds do
+		sum += leaderPos.z - flock.birds[i].pos.z
+	end
+	return sum / #flock.birds
+end
+
+--- Средняя ошибка строя: насколько птицы отстоят от своих слотов.
+--- 0 — строй идеален. Не зависит от размера строя, в отличие от расстояния до лидера.
+function Flock.averageSlotError(flock: Flock, ctx: FlockContext): number
+	if #flock.birds == 0 then
+		return 0
+	end
+	local sum = 0
+	for i = 1, #flock.birds do
+		local bird = flock.birds[i]
+		if bird.mode == "formation" then
+			sum += Vec.dist(bird.pos, Flock.slotTarget(ctx, bird.slot))
+		else
+			sum += 120 -- потерянная птица — считаем как большую ошибку
+		end
 	end
 	return sum / #flock.birds
 end

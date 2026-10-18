@@ -14,7 +14,6 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 LUAU_BIN="${LUAU_BIN:-/tmp/luau/build/luau}"
 ANALYZE_BIN="${ANALYZE_BIN:-/tmp/luau/build/luau-analyze}"
-SANDBOX="$ROOT/build/luasandbox"
 
 if [ ! -x "$LUAU_BIN" ]; then
   echo "НЕ НАЙДЕН интерпретатор Luau: $LUAU_BIN" >&2
@@ -22,23 +21,7 @@ if [ ! -x "$LUAU_BIN" ]; then
   exit 2
 fi
 
-rm -rf "$SANDBOX"
-mkdir -p "$SANDBOX"
-
-# Копируем модули и переписываем пути require.
-copy_with_rewrite() {
-  local src="$1" dst="$2"
-  for f in "$src"/*.luau; do
-    [ -e "$f" ] || continue
-    sed -E \
-      -e 's/require\(script\.Parent\.([A-Za-z0-9_]+)\)/require(".\/\1")/g' \
-      -e 's/require\(ReplicatedStorage\.FlockShared\.([A-Za-z0-9_]+)\)/require(".\/\1")/g' \
-      "$f" > "$dst/$(basename "$f")"
-  done
-}
-
-copy_with_rewrite "$ROOT/src/shared" "$SANDBOX"
-copy_with_rewrite "$ROOT/tests" "$SANDBOX"
+SANDBOX="$("$ROOT/tools/prepare_sandbox.sh")"
 
 echo "== Юнит-тесты (luau $LUAU_BIN) =="
 cd "$SANDBOX"

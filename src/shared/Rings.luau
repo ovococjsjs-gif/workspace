@@ -112,9 +112,13 @@ function Rings.radialDistance(ring: Ring, pos: Vec3): number
 	return Vec.len(radial)
 end
 
+--- Допуск по плоскости: птица считается прошедшей, если она уже на плоскости
+--- (или совсем чуть-чуть не дошла — пара метров, размер самой птицы).
+local PLANE_TOLERANCE = 8.0
+
 --- Птица «прошла» кольцо, если она за плоскостью и внутри радиуса.
 function Rings.birdPassed(ring: Ring, pos: Vec3): boolean
-	if Rings.signedDistance(ring, pos) < -2.0 then
+	if Rings.signedDistance(ring, pos) < -PLANE_TOLERANCE then
 		return false
 	end
 	return Rings.radialDistance(ring, pos) <= ring.radius
@@ -151,6 +155,9 @@ function Rings.update(
 		ring.totalCount = #birdPositions
 
 		if ring.state == "waiting" then
+			if ring.spawnedAt == 0 then
+				ring.spawnedAt = time
+			end
 			local signed = Rings.signedDistance(ring, leaderPos)
 			local prev = world.leaderPrevSigned[ring.id] or -1
 			if signed >= 0 and prev < 0 then

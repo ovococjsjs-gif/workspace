@@ -10,6 +10,7 @@ require(script.Parent.test_vec)
 require(script.Parent.test_flock)
 require(script.Parent.test_rings)
 require(script.Parent.test_difficulty)
+require(script.Parent.test_simulation)
 
 local _, failed = T.run()
 
