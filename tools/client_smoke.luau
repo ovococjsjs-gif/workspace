@@ -123,6 +123,17 @@ step("Views: вожак, птицы, кольца, камни", function()
 	Views.updateObstacles(game.obstacles, game.time)
 	check(true, "Views.update* отработали без ошибок")
 
+	-- Вспышка кольца при прохождении: кольцо расходится и гаснет.
+	local firstRing = game.rings.rings[1]
+	if firstRing then
+		Views.popRing(firstRing.id, game.time)
+		Views.updateRings(game.rings, 1 / 60, game.time + 0.1)
+		Views.updateRings(game.rings, 1 / 60, game.time + 0.6)
+		check(true, "Views.popRing (вспышка кольца) отработал")
+	else
+		check(false, "не нашлось ни одного кольца для проверки popRing")
+	end
+
 	-- Птицы и кольца должны были появиться в мире.
 	local birds = 0
 	for _, child in ipairs(Mock.services.Workspace:GetDescendants()) do
