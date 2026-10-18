@@ -124,6 +124,28 @@ T.test("ветер сносит потерянных птиц", function()
 	T.ok(flock.birds[1].pos.x > 1, "птица должна сноситься по ветру: x=" .. tostring(flock.birds[1].pos.x))
 end)
 
+T.test("турбулентность ветра рвёт строй сильнее ровного ветра", function()
+	local leader = Vec.new(0, 20, 0)
+	local function run(withTurbulence: boolean): number
+		local flock = Flock.new(12, 99)
+		local ctx = ctxAt(leader)
+		ctx.wind = Vec.new(9, 0, 0)
+		if withTurbulence then
+			ctx.turbulence = 0.6
+		end
+		-- Стая собирается, потом ветер выкачивает её из равновесия.
+		for _ = 1, 300 do
+			Flock.step(flock, 1 / 60, ctx)
+		end
+		return Flock.averageSlotError(flock, ctx)
+	end
+	local calm = run(false)
+	local storm = run(true)
+	T.ok(storm > calm, string.format("турбулентность должна ломать строй сильнее: %s vs %s", tostring(storm), tostring(calm)))
+	T.ok(storm > 0.3, string.format("турбулентность должна давать заметную ошибку строя, а не %s", tostring(storm)))
+	T.ok(calm < storm, string.format("ровный ветер не должен рвать строй: %s", tostring(calm)))
+end)
+
 T.test("симуляция детерминирована при одинаковом сиде", function()
 	local a = Flock.new(8, 99)
 	local b = Flock.new(8, 99)

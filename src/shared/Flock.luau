@@ -45,6 +45,9 @@ export type FlockContext = {
 	time: number,
 	--- Насколько вожак "нервничает" (0..1): резкие манёвры пугают стаю.
 	leaderAgitation: number?,
+	--- Турбулентность ветра (0..1): порыв бьёт по птицам неравномерно,
+	--- стая рвётся и вытягивается. В штиль — ноль.
+	turbulence: number?,
 }
 
 export type FlockEvents = {
@@ -166,8 +169,13 @@ function Flock.step(flock: Flock, dt: number, ctx: FlockContext): FlockEvents
 			local desiredVel = Vec.scale(Vec.norm(toTarget, ctx.courseForward), math.min(cfg.maxSpeed, dist * cfg.catchupGain))
 			local accel = Vec.scale(Vec.sub(desiredVel, bird.vel), gain)
 
-			-- Ветер слегка сносит даже в строю.
-			accel = Vec.add(accel, Vec.scale(ctx.wind, cfg.windOnBirds * 0.12))
+			-- Ветер сносит даже в строю; в бурю бьёт по птицам неравномерно —
+			-- именно из-за этого стая вытягивается и рвётся.
+			local gust = 1
+			if ctx.turbulence and ctx.turbulence > 0 then
+				gust = 1 + ctx.turbulence * math.sin(bird.seed * 1.7)
+			end
+			accel = Vec.add(accel, Vec.scale(ctx.wind, cfg.windOnBirds * 0.9 * gust))
 
 				-- Расталкивание.
 			for j = 1, #birds do

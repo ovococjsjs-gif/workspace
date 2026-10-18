@@ -192,7 +192,7 @@ local function updateLeader(game: Game, dt: number, wind: Vec3, input: Input): (
 	accel = Vec.add(accel, Vec.scale(cp.tangent, input.z * thrust))
 	accel = Vec.add(accel, Vec.scale(cp.right, input.x * thrust * Config.leader.strafeFactor))
 	accel = Vec.add(accel, Vec.scale(UP, input.y * thrust * Config.leader.strafeFactor))
-	accel = Vec.add(accel, Vec.scale(wind, 0.22))
+	accel = Vec.add(accel, Vec.scale(wind, 0.4))
 
 	game.leaderVel = Vec.add(game.leaderVel, Vec.scale(accel, dt))
 	game.leaderVel = Vec.scale(game.leaderVel, math.max(0, 1 - Config.leader.drag * dt))
@@ -310,6 +310,7 @@ function Game.step(game: Game, dt: number, input: Input): { GameEvent }
 		wind = wind,
 		time = game.time,
 		leaderAgitation = game.agitation,
+		turbulence = phase.windStrength * 0.12 * windScale,
 	}
 	local flockEvents = Flock.step(game.flock, dt, ctx)
 	event.recovered = #flockEvents.recovered
