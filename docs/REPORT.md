@@ -64,9 +64,9 @@ Roblox-API**. Roblox-слой только рисует и читает ввод
 | `bash tools/smoke.sh` | клиент и сервер **выполняются** headless против мока Roblox API: 18 проверок, 0 провалов | [`evidence/smoke.log`](evidence/smoke.log) |
 | `bash tools/verify.sh` | все проверки разом + сводка «ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ» | [`evidence/verify.log`](evidence/verify.log) |
 | `bash tools/probe.sh` | headless-забег: кольца засчитываются, счёт и комбо растут | [`evidence/probe.log`](evidence/probe.log) |
-| `bash tools/scenario.sh calm` | «спокойный пилот»: 36 колец, 33 чистых, стая цела (18/18), счёт 15660 | [`evidence/scenario_calm.log`](evidence/scenario_calm.log) |
-| `bash tools/scenario.sh booster` | «пилот с рывками»: 37 колец, 35 чистых, стая цела, счёт 17880 | [`evidence/scenario_booster.log`](evidence/scenario_booster.log) |
-| `bash tools/scenario.sh medium` | «средний пилот» (задержка реакции 0.2 с, шум в управлении): 35 колец, 33 чистых, счёт 16680 | — |
+| `bash tools/scenario.sh calm` | «спокойный пилот»: 36 колец, 35 чистых, стая цела (18/18), счёт 28440 | [`evidence/scenario_calm.log`](evidence/scenario_calm.log) |
+| `bash tools/scenario.sh booster` | «пилот с рывками»: 37 колец, 35 чистых, стая цела, счёт 27360 | [`evidence/scenario_booster.log`](evidence/scenario_booster.log) |
+| `bash tools/scenario.sh medium` | «средний пилот» (задержка реакции 0.2 с, шум в управлении): 35 колец, 33 чистых, счёт 25560 | — |
 | `bash tools/scenario.sh reckless` | «паникующий пилот»: стая рассыпается 18→3, забег завершается проигрышем | [`evidence/scenario_reckless.log`](evidence/scenario_reckless.log) |
 
 `tools/scenario.sh` — это, по сути, «автотест баланса»: два сценария пилота
@@ -253,7 +253,7 @@ Studio это был бы error каждый кадр. Исправлено (ш�
   маячками для потерянных птиц, «затишьем» как вторым шансом, препятствиями,
   HUD (счёт, комбо, стая, спокойствие, ветер, таймер, фазы, окно кольца,
   стрелка к потерянной птице), звуком, рекордом с серверной проверкой.
-* **Проверено:** 44/44 юнит-тестов, 18/18 smoke-проверок клиента и сервера
+* **Проверено:** 47/47 юнит-тестов, 18/18 smoke-проверок клиента и сервера
   против мока Roblox API, `luau-analyze` без ошибок, синтаксис 24 файлов,
   headless-прогоны забегов (кольца/счёт/комбо/паника/затишье/рывок/проигрыш/
   детерминизм) — логи в `docs/evidence/`.

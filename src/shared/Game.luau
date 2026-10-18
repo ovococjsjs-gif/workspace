@@ -317,6 +317,10 @@ function Game.step(game: Game, dt: number, input: Input): { GameEvent }
 	local ringEvents = Rings.update(game.rings, dt, game.time, game.leaderPos, birdPositions)
 	for _, ringEvent in ringEvents do
 		local points = Score.awardRing(game.score, ringEvent.result, ringEvent.ring.baseScore)
+		if ringEvent.result == "perfect" then
+			-- Бонус за то, что стая собрана целиком.
+			points += Score.awardPerfectFlock(game.score)
+		end
 		table.insert(event.rings, {
 			id = ringEvent.ring.id,
 			result = ringEvent.result,

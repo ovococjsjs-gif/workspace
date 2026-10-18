@@ -277,16 +277,5 @@ function Flock.averageSlotError(flock: Flock, ctx: FlockContext): number
 	return sum / #flock.birds
 end
 
---- Собирает лидером потерянную птицу: возвращает true, если птица только что подобрана.
-function Flock.tryRally(flock: Flock, ctx: FlockContext): number?
-	for i = 1, #flock.birds do
-		local bird = flock.birds[i]
-		if bird.mode == "lost" and Vec.dist(ctx.leaderPos, bird.pos) <= Config.bird.rallyRadius then
-			bird.mode = "returning"
-			return i
-		end
-	end
-	return nil
-end
 
 return Flock

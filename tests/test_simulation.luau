@@ -197,6 +197,25 @@ T.test("магнит: потерянная птица сама тянется к
 	T.ok(bird.mode == "returning" or bird.mode == "formation", "птица должна начать возвращаться в строй")
 end)
 
+T.test("пилот без управления: игра не падает, кольца уходят в таймаут", function()
+	local game = Game.new(41)
+	local fails = 0
+	for _ = 1, 60 * 60 do
+		local events = Game.step(game, DT, { x = 0, y = 0, z = 0 })
+		for _, event in events do
+			for _, ring in event.rings do
+				if ring.result == "fail" then
+					fails += 1
+				end
+			end
+		end
+	end
+	T.ok(fails > 0, "кольца, которые лидер не пересёк, должны уходить в провал: " .. tostring(fails))
+	T.eq(game.mode, "playing", "без управления забег не должен сам проигрываться")
+	T.ok(game.score.score == 0, "без управления очков быть не должно")
+	T.ok(game.time > 0, "игра продолжалась")
+end)
+
 T.test("затишье: включается, когда стая на грани развала", function()
 	local game = Game.new(31)
 	-- Оставляем в строю 5 птиц из 18 — до порога "затишья" (6).

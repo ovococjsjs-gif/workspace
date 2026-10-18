@@ -18,6 +18,7 @@ local Config = require(Shared.Config)
 local Course = require(Shared.Course)
 local Game = require(Shared.Game)
 local Flock = require(Shared.Flock)
+local Score = require(Shared.Score)
 
 local Input = require(script.Parent.Input)
 local World = require(script.Parent.World)
@@ -111,10 +112,15 @@ local function endRun(finalScore: number)
 		local sc = game.score
 		local minutes = math.floor(game.time / 60)
 		local seconds = math.floor(game.time % 60)
+		local alive = Game.flockAlive(game)
+		local bonus = Score.endFlockBonus(alive, Game.flockTotal(game))
 		stats = string.format(
 			"КОЛЕЦ %d  ·  ЧИСТЫХ %d  ·  МАКС. КОМБО ×%d  ·  ВРЕМЯ %d:%02d",
 			sc.rings, sc.perfects, sc.bestCombo, minutes, seconds
 		)
+		if bonus > 0 then
+			stats ..= string.format("  ·  БОНУС ЗА СТАЮ +%d", bonus)
+		end
 	end
 	HUD.showEnd(true, finalScore, math.max(state.best, finalScore), stats)
 	Audio.fail()
@@ -185,7 +191,12 @@ local function handleEvent(event: Game.GameEvent)
 	end
 
 	if event.gameOver then
-		endRun(state.game and state.game.score.score or 0)
+		local game = state.game
+		local final = 0
+		if game then
+			final = Score.finalScore(game.score, Game.flockAlive(game), Game.flockTotal(game))
+		end
+		endRun(final)
 	end
 end
 

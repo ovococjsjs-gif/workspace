@@ -85,9 +85,21 @@ function Score.isPlausible(score: number, elapsed: number): boolean
 	return score <= allowed
 end
 
---- Итоговый счёт забега (с бонусом за длительность).
-function Score.finalScore(state: ScoreState): number
-	return state.score
+--- Бонус за выжившую стаю (начисляется один раз в конце забега).
+function Score.endFlockBonus(alive: number, total: number): number
+	if total <= 0 then
+		return 0
+	end
+	return math.floor(math.clamp(alive, 0, total) * Config.score.endFlockBonusPerBird)
+end
+
+--- Итоговый счёт забега: основной счёт + бонус за выжившую стаю.
+function Score.finalScore(state: ScoreState, alive: number?, total: number?): number
+	local bonus = 0
+	if alive and total then
+		bonus = Score.endFlockBonus(alive, total)
+	end
+	return state.score + bonus
 end
 
 return Score
