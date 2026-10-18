@@ -55,6 +55,8 @@ local standingsLabel: TextLabel? = nil
 local standingsRows: { TextLabel } = {}
 local shopScreen: Frame? = nil
 local shopButton: TextButton? = nil
+local dailyScreen: Frame? = nil
+local dailyBoardLabel: TextLabel? = nil
 local shopRows: { [string]: { button: TextButton?, status: TextLabel?, price: string } } = {}
 
 --- Товары магазина: ключ перка, название, описание, цена (Robux).
@@ -415,6 +417,91 @@ function HUD.build()
 	startButton.Parent = startScreen
 	roundCorners(startButton, 18)
 	HUD.startButton = startButton
+
+	-- Кнопка «ЗАБЕГ ДНЯ»: общий курс суток и таблица лидеров.
+	local dailyButton = new("TextButton", {
+		BackgroundColor3 = Color3.fromRGB(46, 92, 140),
+		BorderSizePixel = 0,
+		Text = "ЗАБЕГ ДНЯ",
+		TextSize = 22,
+		Font = Enum.Font.GothamBold,
+		TextColor3 = Color3.fromRGB(236, 244, 255),
+		Position = UDim2.new(0.5, -120, 0.5, 186),
+		Size = UDim2.fromOffset(240, 52),
+		AutoButtonColor = true,
+		ZIndex = 11,
+	})
+	dailyButton.Parent = startScreen
+	roundCorners(dailyButton, 16)
+	HUD.dailyButton = dailyButton
+
+	-- Кнопка «ТАБЛИЦА ДНЯ» (видна всегда).
+	local dailyBoardButton = new("TextButton", {
+		BackgroundColor3 = Color3.fromRGB(30, 38, 52),
+		BorderSizePixel = 0,
+		Text = "ТАБЛИЦА ДНЯ",
+		TextSize = 16,
+		Font = Enum.Font.GothamBold,
+		TextColor3 = COLOR_ACCENT,
+		Position = UDim2.fromOffset(24, -70),
+		AnchorPoint = Vector2.new(0, 1),
+		Size = UDim2.fromOffset(180, 44),
+		ZIndex = 12,
+	})
+	dailyBoardButton.Parent = gui
+	roundCorners(dailyBoardButton, 14)
+	HUD.dailyBoardButton = dailyBoardButton
+
+	-- Панель таблицы дня.
+	dailyScreen = new("Frame", {
+		Name = "DailyPanel",
+		BackgroundColor3 = Color3.fromRGB(10, 14, 22),
+		BackgroundTransparency = 0.12,
+		BorderSizePixel = 0,
+		Size = UDim2.fromScale(1, 1),
+		Visible = false,
+		ZIndex = 30,
+	})
+	dailyScreen.Parent = gui
+	local dailyTitle = textLabel(dailyScreen, {
+		Position = UDim2.new(0.5, -320, 0.12, 0),
+		Size = UDim2.fromOffset(640, 50),
+		TextSize = 32,
+		Text = "ТАБЛИЦА ЗАБЕГА ДНЯ",
+		TextColor3 = COLOR_ACCENT,
+	})
+	dailyTitle.Parent = dailyScreen
+	local dailySub = textLabel(dailyScreen, {
+		Position = UDim2.new(0.5, -320, 0.12, 48),
+		Size = UDim2.fromOffset(640, 28),
+		TextSize = 16,
+		Text = "Курс дня общий для всех игроков. Улучши свою строку!",
+		TextTransparency = 0.3,
+	})
+	dailySub.Parent = dailyScreen
+	dailyBoardLabel = textLabel(dailyScreen, {
+		Position = UDim2.new(0.5, -320, 0.12, 92),
+		Size = UDim2.fromOffset(640, 320),
+		TextSize = 22,
+		Text = "Пока пусто — сыграй первый забег дня!",
+		TextColor3 = COLOR_TEXT,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	})
+	dailyBoardLabel.Parent = dailyScreen
+	local dailyClose = new("TextButton", {
+		BackgroundColor3 = Color3.fromRGB(30, 38, 52),
+		BorderSizePixel = 0,
+		Text = "НАЗАД",
+		TextSize = 20,
+		Font = Enum.Font.GothamBold,
+		TextColor3 = COLOR_TEXT,
+		Position = UDim2.new(0.5, -90, 0.78, 0),
+		Size = UDim2.fromOffset(180, 50),
+		ZIndex = 31,
+	})
+	dailyClose.Parent = dailyScreen
+	roundCorners(dailyClose, 14)
+	HUD.dailyCloseButton = dailyClose
 
 	-- Финальный экран.
 	endScreen = new("Frame", {
@@ -970,6 +1057,25 @@ function HUD.setStandings(entries: any, myUserId: number)
 	if standingsLabel then
 		standingsLabel.Text = string.format("ЗАБЕГ - %d ИГРОК(ОВ)", #entries)
 	end
+end
+
+--- Панель таблицы забега дня.
+function HUD.showDaily(show: boolean)
+	if dailyScreen then
+		dailyScreen.Visible = show
+	end
+end
+
+--- Строки таблицы забега дня.
+function HUD.setDailyBoard(lines: { string })
+	if not dailyBoardLabel then
+		return
+	end
+	if #lines == 0 then
+		dailyBoardLabel.Text = "Пока пусто — сыграй первый забег дня!"
+		return
+	end
+	dailyBoardLabel.Text = table.concat(lines, "\n")
 end
 
 --- Панель магазина.

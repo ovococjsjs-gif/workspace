@@ -19,6 +19,7 @@ local Course = require(Shared.Course)
 local Game = require(Shared.Game)
 local Score = require(Shared.Score)
 local Race = require(Shared.Race)
+local Daily = require(Shared.Daily)
 local Perms = require(Shared.Perms)
 
 local Input = require(script.Parent.Input)
@@ -60,6 +61,8 @@ type ClientState = {
 	finalStats: string,
 	--- Итоговая таблица забега (для финального экрана).
 	finalResults: string,
+	--- Режим текущего забега: "race" или "daily".
+	roundMode: string,
 }
 
 local state: ClientState = {
@@ -79,6 +82,7 @@ local state: ClientState = {
 	finalScore = 0,
 	finalStats = "",
 	finalResults = "",
+	roundMode = "race",
 }
 
 --- Кто мы для сервера: нужен UserId, чтобы подсветить свою строку в рейтинге.
@@ -125,6 +129,8 @@ local standingsRemote = remote("Standings")
 local roundEndRemote = remote("RoundEnd")
 local progressRemote = remote("Progress")
 local requestRoundRemote = remote("RequestRound")
+local requestDailyRemote = remote("RequestDaily")
+local dailyBoardRemote = remote("DailyBoard")
 local buyPassRemote = remote("BuyPass")
 local buyProductRemote = remote("BuyProduct")
 local permsRemote = remote("PermsUpdate")
@@ -162,29 +168,60 @@ local function serverNow(): number
 end
 
 --- Запросить общий забег: сервер ответит сидом и временем старта.
-local function requestRound()
+--- mode = "daily" — забег дня (общий курс суток и таблица лидеров).
+local function requestRound(mode: string?)
+	local kind = mode or "race"
 	state.mode = "menu"
 	state.roundRequested = true
 	state.roundDeadline = os.clock() + 3
 	state.roundStartAt = nil
+	state.roundMode = kind
 	HUD.showEnd(false, 0, 0, "")
 	HUD.showStart(false)
-	HUD.setCountdown("ПОДГОТОВКА")
-	if requestRoundRemote then
+	HUD.setCountdown(if kind == "daily" then "ЗАБЕГ ДНЯ" else "ПОДГОТОВКА")
+	local remoteToUse = if kind == "daily" then requestDailyRemote else requestRoundRemote
+	if remoteToUse then
 		pcall(function()
-			requestRoundRemote:FireServer()
+			remoteToUse:FireServer()
 		end)
 	end
 end
 
 if roundStartRemote then
-	roundStartRemote.OnClientEvent:Connect(function(seed: any, startAt: any)
+	roundStartRemote.OnClientEvent:Connect(function(seed: any, startAt: any, mode: any)
 		if typeof(seed) ~= "number" then
 			return
 		end
 		state.roundSeed = seed
 		state.roundStartAt = if typeof(startAt) == "number" then startAt else serverNow()
 		state.roundRequested = false
+		if typeof(mode) == "string" then
+			state.roundMode = mode
+		end
+		HUD.setCountdown(if state.roundMode == "daily" then "ЗАБЕГ ДНЯ" else "ПОДГОТОВКА")
+	end)
+end
+
+--- Таблица лидеров забега дня.
+if dailyBoardRemote then
+	dailyBoardRemote.OnClientEvent:Connect(function(entries: any)
+		if type(entries) ~= "table" then
+			return
+		end
+		local list: { Daily.BoardEntry } = {}
+		for _, entry in entries do
+			if type(entry) == "table" then
+				table.insert(list, entry)
+			end
+		end
+		local lines: { string } = {}
+		for i, entry in ipairs(list) do
+			if i > 10 then
+				break
+			end
+			table.insert(lines, Daily.formatEntry(entry, i))
+		end
+		HUD.setDailyBoard(lines)
 	end)
 end
 
@@ -539,6 +576,23 @@ local function boot()
 			end
 		end)
 	end
+	if HUD.dailyButton then
+		HUD.dailyButton.MouseButton1Click:Connect(function()
+			if state.mode == "menu" then
+				requestRound("daily")
+			end
+		end)
+	end
+	if HUD.dailyBoardButton then
+		HUD.dailyBoardButton.MouseButton1Click:Connect(function()
+			HUD.showDaily(true)
+		end)
+	end
+	if HUD.dailyCloseButton then
+		HUD.dailyCloseButton.MouseButton1Click:Connect(function()
+			HUD.showDaily(false)
+		end)
+	end
 	if HUD.shopButton then
 		HUD.shopButton.MouseButton1Click:Connect(function()
 			HUD.showShop(true)
@@ -577,6 +631,8 @@ local function boot()
 					local sec = math.ceil(remaining)
 					if sec <= 3 then
 						HUD.setCountdown(tostring(sec))
+					elseif state.roundMode == "daily" then
+						HUD.setCountdown("ЗАБЕГ ДНЯ")
 					else
 						HUD.setCountdown("ПОДГОТОВКА")
 					end

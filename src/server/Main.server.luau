@@ -22,6 +22,7 @@ local Shared = ReplicatedStorage:WaitForChild("FlockShared", 10)
 
 local Score = require(Shared.Score)
 local Race = require(Shared.Race)
+local Daily = require(Shared.Daily)
 local ShopConfig = require(Shared.ShopConfig)
 
 local STORE_NAME = "flock_best_v1"
@@ -48,6 +49,8 @@ local standingsRemote = makeRemote("Standings")
 local roundEndRemote = makeRemote("RoundEnd")
 local progressRemote = makeRemote("Progress")
 local requestRoundRemote = makeRemote("RequestRound")
+local requestDailyRemote = makeRemote("RequestDaily")
+local dailyBoardRemote = makeRemote("DailyBoard")
 
 -- Покупки (Robux).
 local buyPassRemote = makeRemote("BuyPass")
@@ -75,6 +78,8 @@ local round = {
 	startedAt = 0,
 	state = "idle", -- idle | countdown | running | finished
 	finishedOrder = 0,
+	--- "race" — обычный забег, "daily" — забег дня (общий курс и таблица лидеров).
+	mode = "race",
 }
 --- Участники текущего раунда.
 local racers: { [Player]: Race.Entry } = {}
@@ -131,14 +136,25 @@ local function broadcastStandings()
 end
 
 --- Новый раунд: новый сид (общий курс) и обратный отсчёт.
-local function startRound()
-	round.seed = math.random(1, 100000000)
+--- mode = "daily" — курс дня (одинаковый для всех в течение суток).
+local function startRound(mode: string?)
+	local kind = mode or "race"
+	round.mode = kind
+	round.seed = if kind == "daily" then Daily.seedToday() else math.random(1, 100000000)
 	round.startAt = serverNow() + COUNTDOWN
 	round.startedAt = round.startAt
 	round.state = "countdown"
 	round.finishedOrder = 0
+	-- Новый раунд — чистый старт для всех участников.
+	for _, entry in racers do
+		entry.score = 0
+		entry.distance = 0
+		entry.alive = 18
+		entry.finished = false
+		entry.place = nil
+	end
 	for player in racers do
-		roundStartRemote:FireClient(player, round.seed, round.startAt)
+		roundStartRemote:FireClient(player, round.seed, round.startAt, kind)
 	end
 end
 
@@ -156,10 +172,89 @@ requestRoundRemote.OnServerEvent:Connect(function(player: Player)
 		startRound()
 	elseif round.state == "countdown" then
 		-- Раунд ещё не начался: игрок входит в него.
-		roundStartRemote:FireClient(player, round.seed, round.startAt)
+		roundStartRemote:FireClient(player, round.seed, round.startAt, round.mode)
 	else
 		-- Раунд уже идёт: игрок вступает в него с текущим курсом.
-		roundStartRemote:FireClient(player, round.seed, serverNow())
+		roundStartRemote:FireClient(player, round.seed, serverNow(), round.mode)
+	end
+end)
+
+--------------------------------------------------------------------------- забег дня
+
+--- Таблица лидеров дня: userId -> результат.
+local dailyBoard: { [number]: Daily.BoardEntry } = {}
+local dailyLoaded = false
+
+local function loadDailyBoard()
+	if dailyLoaded then
+		return
+	end
+	dailyLoaded = true
+	local store = DataStoreService:GetDataStore("flock_daily_" .. Daily.todayKey())
+	local ok, data = pcall(function()
+		return store:GetAsync("board")
+	end)
+	if ok and type(data) == "table" then
+		for userId, entry in pairs(data) do
+			if type(entry) == "table" and typeof(entry.score) == "number" then
+				dailyBoard[userId] = {
+					userId = userId,
+					name = tostring(entry.name or "?"),
+					score = entry.score,
+				}
+			end
+		end
+	end
+end
+
+local function dailyEntries(): { Daily.BoardEntry }
+	local list: { Daily.BoardEntry } = {}
+	for _, entry in dailyBoard do
+		table.insert(list, entry)
+	end
+	return Daily.sortBoard(list)
+end
+
+local function broadcastDailyBoard()
+	local sorted = dailyEntries()
+	for player in racers do
+		pcall(function()
+			dailyBoardRemote:FireClient(player, sorted)
+		end)
+	end
+end
+
+local function saveDailyBoard()
+	local store = DataStoreService:GetDataStore("flock_daily_" .. Daily.todayKey())
+	local data: { [number]: { name: string, score: number } } = {}
+	for userId, entry in dailyBoard do
+		data[userId] = { name = entry.name, score = entry.score }
+	end
+	pcall(function()
+		store:SetAsync("board", data)
+	end)
+end
+
+--- Записывает результат игрока в таблицу дня (если он лучше прежнего).
+local function recordDaily(player: Player, score: number)
+	loadDailyBoard()
+	local entry = dailyBoard[player.UserId]
+	if not entry or score > entry.score then
+		dailyBoard[player.UserId] = { userId = player.UserId, name = player.Name, score = score }
+		saveDailyBoard()
+	end
+	broadcastDailyBoard()
+end
+
+requestDailyRemote.OnServerEvent:Connect(function(player: Player)
+	ensureRacer(player)
+	markStart(player)
+	loadDailyBoard()
+	broadcastDailyBoard()
+	if round.state == "idle" or round.state == "finished" or round.mode ~= "daily" then
+		startRound("daily")
+	else
+		roundStartRemote:FireClient(player, round.seed, serverNow(), "daily")
 	end
 end)
 
@@ -202,6 +297,10 @@ progressRemote.OnServerEvent:Connect(function(
 		entry.finished = true
 		round.finishedOrder += 1
 		entry.place = round.finishedOrder
+		-- В забеге дня результат попадает в общую таблицу лидеров.
+		if round.mode == "daily" then
+			recordDaily(player, score)
+		end
 	end
 end)
 

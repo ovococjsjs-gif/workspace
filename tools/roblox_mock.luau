@@ -244,6 +244,8 @@ EnumType.CameraType = makeEnum({ Scriptable = "Scriptable", Custom = "Custom" })
 EnumType.EasingStyle = makeEnum({ Back = "Back", Quad = "Quad", Linear = "Linear" })
 EnumType.EasingDirection = makeEnum({ Out = "Out", In = "In" })
 EnumType.RollOffMode = makeEnum({ InverseTapered = "InverseTapered", Linear = "Linear" })
+EnumType.TextXAlignment = makeEnum({ Left = "Left", Center = "Center", Right = "Right" })
+EnumType.TextYAlignment = makeEnum({ Top = "Top", Center = "Center", Bottom = "Bottom" })
 EnumType.ProductInfoResponse = makeEnum({
 	Success = "Success",
 	AlreadyProcessed = "AlreadyProcessed",

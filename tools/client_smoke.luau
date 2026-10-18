@@ -538,6 +538,81 @@ step("Гонка: общий раунд, живой рейтинг и магаз
 	)
 end)
 
+--------------------------------------------------------------------------- забег дня
+
+step("Забег дня: общий курс суток и таблица лидеров", function()
+	local Main = require("./Main")
+	local Daily = require("./Daily")
+	local heartbeat = services.RunService.Heartbeat
+	local remotes = services.ReplicatedStorage:FindFirstChild("FlockRemotes")
+	local requestDaily = remotes and remotes:FindFirstChild("RequestDaily")
+	local progress = remotes and remotes:FindFirstChild("Progress")
+	local player = services.Players.LocalPlayer
+	check(requestDaily ~= nil, "ремот забега дня создан сервером")
+
+	-- Запрос забега дня: сервер выдаёт курс дня и режим "daily".
+	if requestDaily then
+		for _, fn in ipairs(requestDaily.OnServerEvent.__signals) do
+			fn(player)
+		end
+	end
+	for _ = 1, 3 do
+		for _, fn in ipairs(heartbeat.__signals) do
+			fn(1 / 60)
+		end
+	end
+	check(Main.getState().roundMode == "daily", "клиент получил режим забега дня: " .. tostring(Main.getState().roundMode))
+	check(
+		Main.getState().roundSeed == Daily.seedToday(),
+		"курс дня совпадает у всех: " .. tostring(Main.getState().roundSeed)
+	)
+
+	-- Финиш в режиме дня: результат попадает в таблицу лидеров.
+	if progress then
+		for _, fn in ipairs(progress.OnServerEvent.__signals) do
+			fn(player, 7777, 1500, 10, true, 70, { x = 0, y = 20, z = 1500 })
+		end
+	end
+	for _ = 1, 80 do
+		for _, fn in ipairs(heartbeat.__signals) do
+			fn(1 / 60)
+		end
+	end
+	local boardFound = false
+	for _, child in ipairs(services.Players.LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("FlockGui"):GetDescendants()) do
+		if child:IsA("TextLabel") and string.find(child.Text, "7777") ~= nil then
+			boardFound = true
+		end
+	end
+	check(boardFound, "таблица дня показала результат игрока")
+
+	-- Кнопка «ТАБЛИЦА ДНЯ» открывает панель.
+	local screen = services.Players.LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("FlockGui")
+	local boardButton
+	if screen then
+		for _, child in ipairs(screen:GetDescendants()) do
+			if child:IsA("TextButton") and child.Text == "ТАБЛИЦА ДНЯ" then
+				boardButton = child
+			end
+		end
+	end
+	check(boardButton ~= nil, "кнопка таблицы дня найдена")
+	if boardButton then
+		for _, fn in ipairs(boardButton.MouseButton1Click.__signals) do
+			fn()
+		end
+	end
+	local panelVisible = false
+	if screen then
+		for _, child in ipairs(screen:GetDescendants()) do
+			if child:IsA("Frame") and child.Name == "DailyPanel" and child.Visible then
+				panelVisible = true
+			end
+		end
+	end
+	check(panelVisible, "панель таблицы дня открылась")
+end)
+
 --------------------------------------------------------------------------- сервер
 
 step("Server: приём и проверка рекорда", function()

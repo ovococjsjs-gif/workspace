@@ -19,6 +19,7 @@ local game = __mock.env.game
 local workspace = __mock.env.workspace
 local Instance = __mock.env.Instance
 local Vector3 = __mock.env.Vector3
+local Vector2 = __mock.env.Vector2
 local CFrame = __mock.env.CFrame
 local UDim2 = __mock.env.UDim2
 local UDim = __mock.env.UDim
