@@ -139,8 +139,8 @@ function Game.reset(game: Game): ()
 		courseRight = cp.right,
 		courseForward = cp.tangent,
 		wind = Vec.zero(),
+		time = 0,
 		leaderAgitation = 0,
-		dt = 0,
 	}
 	for i = 1, #game.flock.birds do
 		local bird = game.flock.birds[i]

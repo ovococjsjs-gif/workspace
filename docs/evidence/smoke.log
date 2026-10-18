@@ -1,8 +1,9 @@
-# tools/smoke.sh — 2026-10-18 10:48:27 UTC
 HUD: сборка интерфейса
   ok   HUD.getShakeOffset возвращает Vector3-подобный объект
+  ok   HUD.setTime/setPhaseProgress отработали
+  ok   HUD.setStrayDirection отработал
   ok   ScreenGui FlockGui создан в PlayerGui
-  ok   в HUD построено много элементов: 31
+  ok   в HUD построено много элементов: 37
 World: постройка мира
   ok   World.build + World.update отработали
 Views: вожак, птицы, кольца, камни
@@ -21,4 +22,4 @@ Main: запуск клиента и кадры игрового цикла
 Server: загрузка серверного скрипта
   ok   серверный модуль загрузился без ошибок: nil
 
-SMOKE: проверок 16, провалов 0
+SMOKE: проверок 18, провалов 0
