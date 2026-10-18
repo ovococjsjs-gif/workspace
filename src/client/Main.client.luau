@@ -47,6 +47,9 @@ local state: ClientState = {
 local panicWarned = false
 local camera = Workspace.CurrentCamera
 local camPos = Vec.new(0, 36, -30)
+--- Дистанция камеры (плавно отъезжает на рывке) и поле зрения.
+local camBack = 30
+local camFov = 78
 
 --------------------------------------------------------------------------- рекорд
 
@@ -245,17 +248,26 @@ local function updateCamera(dt: number)
 	if not camera or not state.game then
 		return
 	end
-	local cp = Course.pointAt(state.game.leaderPos.z)
-	local target = Vec.add(state.game.leaderPos, Vec.scale(cp.tangent, -30))
+	local game = state.game
+	local cp = Course.pointAt(game.leaderPos.z)
+	-- На рывке камера отъезжает и добавляет перспективы: видно, что скорость выросла.
+	local boosting = game.boostTime > 0
+	local wantBack = if boosting then 39 else 30
+	camBack = camBack + (wantBack - camBack) * math.clamp(dt * 4, 0, 1)
+	local target = Vec.add(game.leaderPos, Vec.scale(cp.tangent, -camBack))
 	target = Vec.add(target, Vec.new(0, 16, 0))
 	local k = math.clamp(dt * 6, 0, 1)
 	camPos = Vec.lerp(camPos, target, k)
-	local look = Vec.add(state.game.leaderPos, Vec.scale(cp.tangent, 14))
+	local look = Vec.add(game.leaderPos, Vec.scale(cp.tangent, 14))
 	local shake = HUD.getShakeOffset()
 	camera.CFrame = CFrame.lookAt(
 		Vector3.new(camPos.x + shake.X, camPos.y + shake.Y, camPos.z + shake.Z),
 		Vector3.new(look.x, look.y, look.z)
 	)
+	-- Поле зрения плавно раскрывается на рывке.
+	local wantFov = if boosting then 92 else 78
+	camFov = camFov + (wantFov - camFov) * math.clamp(dt * 8, 0, 1)
+	camera.FieldOfView = camFov
 end
 
 --- Прячем стандартного персонажа: игрок управляет «кайтом», а не телом.
