@@ -102,6 +102,22 @@ step("World: постройка мира", function()
 	World.build()
 	World.update({ x = 100, y = 20, z = 500 })
 	check(true, "World.build + World.update отработали")
+
+	-- Палитра фаз: небо/туман/яркость должны различаться между фазами.
+	local lighting = services.Lighting
+	local before = lighting.Brightness
+	local beforeFog = lighting.FogEnd
+	World.setPhase(1)
+	local calmBrightness = lighting.Brightness
+	local calmFog = lighting.FogEnd
+	World.setPhase(4)
+	check(
+		calmBrightness ~= lighting.Brightness and calmFog ~= lighting.FogEnd,
+		"палитра фаз меняет свет и туман"
+	)
+	check(lighting.FogEnd < beforeFog, "в буре туман ближе, чем в штиль")
+	lighting.Brightness = before
+	lighting.FogEnd = beforeFog
 end)
 
 step("Views: вожак, птицы, кольца, камни", function()
