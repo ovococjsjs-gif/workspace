@@ -140,6 +140,14 @@ function Game.reset(game: Game): ()
 end
 
 --- Сила ветра: базовая + порывы, растёт от фазы к фазе.
+--- Текущий вектор ветра в мировых координатах (для интерфейса).
+function Game.windVector(game: Game): Vec3
+	local cp = Course.pointAt(game.leaderPos.z)
+	local phase = Difficulty.phaseAt(game.time)
+	local scale = if game.mercyTime > 0 then Config.mercy.windFactor else 1.0
+	return Vec.scale(cp.right, Game.windStrength(game.time, phase) * scale)
+end
+
 function Game.windStrength(time: number, phase: Difficulty.Phase): number
 	local period = Config.wind.gustPeriod
 	local raw = math.sin(time * (2 * math.pi / period))

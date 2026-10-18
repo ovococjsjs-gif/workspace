@@ -46,6 +46,7 @@ local endStats: TextLabel? = nil
 local reticle: Frame? = nil
 local strayArrow: TextLabel? = nil
 local timeLabel: TextLabel? = nil
+local windLabel: TextLabel? = nil
 local phaseBar: Frame? = nil
 local phaseBarFill: Frame? = nil
 local shakeOffset = Vector3.zero
@@ -308,6 +309,17 @@ function HUD.build()
 		Text = "0:00",
 		TextXAlignment = Enum.TextXAlignment.Center,
 		TextTransparency = 0.35,
+	})
+
+	-- Индикатор ветра (слева от таймера).
+	windLabel = textLabel(gui, {
+		Position = UDim2.new(0.5, -250, 0, 92),
+		Size = UDim2.fromOffset(120, 26),
+		TextSize = 16,
+		Text = "",
+		TextXAlignment = Enum.TextXAlignment.Right,
+		TextColor3 = COLOR_ACCENT,
+		TextTransparency = 0.3,
 	})
 
 	-- Полоска прогресса фаз (под таймером).
@@ -615,6 +627,21 @@ function HUD.setPhase(name: string, index: number)
 	if phaseLabel then
 		phaseLabel.Text = string.format("ФАЗА %d — %s", index, name)
 	end
+end
+
+--- Ветер: strength — сила, side — направление по экрану (-1 влево, 1 вправо).
+function HUD.setWind(strength: number, side: number)
+	if not windLabel then
+		return
+	end
+	if math.abs(strength) < 0.4 then
+		windLabel.Text = "ВЕТЕР: ШТИЛЬ"
+		windLabel.TextColor3 = COLOR_TEXT
+		return
+	end
+	local arrow = if side >= 0 then "→" else "←"
+	windLabel.Text = string.format("ВЕТЕР %s %.1f", arrow, math.abs(strength))
+	windLabel.TextColor3 = COLOR_ACCENT
 end
 
 --- Индикатор «затишья» (второй шанс).

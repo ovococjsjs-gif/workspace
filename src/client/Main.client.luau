@@ -309,6 +309,13 @@ local function boot()
 			HUD.setCalm(1 - panic)
 			HUD.setTime(game.time)
 			HUD.setMercy(game.mercyTime > 0, game.mercyTime)
+			local wind = Game.windVector(game)
+			local side = 0
+			if camera then
+				local right = camera.CFrame.RightVector
+				side = wind.x * right.x + wind.y * right.y + wind.z * right.z
+			end
+			HUD.setWind(Vec.len(wind), side)
 			HUD.setPhaseProgress((game.phaseIndex - 1) / 3)
 			updateStrayArrow(game)
 			if panic > 0.55 and not panicWarned then
