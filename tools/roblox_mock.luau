@@ -229,6 +229,11 @@ EnumType.CameraType = makeEnum({ Scriptable = "Scriptable", Custom = "Custom" })
 EnumType.EasingStyle = makeEnum({ Back = "Back", Quad = "Quad", Linear = "Linear" })
 EnumType.EasingDirection = makeEnum({ Out = "Out", In = "In" })
 EnumType.RollOffMode = makeEnum({ InverseTapered = "InverseTapered", Linear = "Linear" })
+EnumType.ProductInfoResponse = makeEnum({
+	Success = "Success",
+	AlreadyProcessed = "AlreadyProcessed",
+	NotProcessedYet = "NotProcessedYet",
+})
 
 local TweenInfo = {
 	new = function(time, easingStyle, easingDirection)
@@ -397,6 +402,17 @@ instanceMethods.FireServer = function(self, ...)
 	rawset(self, "__fired", args)
 end
 
+instanceMethods.FireAllClients = function(self, ...)
+	local args = { ... }
+	rawset(self, "__firedAll", args)
+	local onClient = rawget(self, "OnClientEvent")
+	if onClient and rawget(onClient, "__signals") then
+		for _, fn in ipairs(rawget(onClient, "__signals")) do
+			fn(table.unpack(args))
+		end
+	end
+end
+
 instanceMethods.FireClient = function(self, ...)
 	local args = { ... }
 	rawset(self, "__fired", args)
@@ -436,6 +452,12 @@ local function buildServices(shared)
 	players.LocalPlayer = player
 	players.PlayerAdded = signal("PlayerAdded")
 	players.PlayerRemoving = signal("PlayerRemoving")
+	players.GetPlayerByUserId = function(_self, userId)
+		if player.UserId == userId then
+			return player
+		end
+		return nil
+	end
 
 	local runService = makeInstance("RunService", { Name = "RunService" })
 	runService.Heartbeat = signal("Heartbeat")
@@ -453,6 +475,9 @@ local function buildServices(shared)
 	rawset(replicatedStorage, "__special", { FlockShared = shared, FlockRemotes = remotes })
 
 	local workspaceService = makeInstance("Workspace", { Name = "Workspace" })
+	workspaceService.GetServerTimeNow = function()
+		return 1700000000 + os.clock()
+	end
 	workspaceService.CurrentCamera = makeInstance("Camera", {
 		Name = "Camera",
 		ViewportSize = V2Type.new(1920, 1080),
@@ -494,6 +519,24 @@ local function buildServices(shared)
 
 	local soundService = makeInstance("SoundService", { Name = "SoundService" })
 
+	-- Маркетплейс: промпты покупок и обработка чеков.
+	local marketplaceService = makeInstance("MarketplaceService", { Name = "MarketplaceService" })
+	marketplaceService.ProcessReceipt = nil
+	marketplaceService.PromptGamePassPurchase = function(_self, player, id)
+		rawset(marketplaceService, "__promptedPass", { player = player, id = id })
+	end
+	marketplaceService.PromptProductPurchase = function(_self, player, id, info)
+		rawset(marketplaceService, "__promptedProduct", { player = player, id = id, info = info })
+	end
+
+	-- GameplayService: проверка владения game pass'ом.
+	local gameplayService = makeInstance("GameplayService", { Name = "GameplayService" })
+	gameplayService.__ownedPasses = {}
+	gameplayService.PlayerHasPassAsync = function(_self, userId, id)
+		local owned = rawget(gameplayService, "__ownedPasses")
+		return owned[userId] ~= nil and owned[userId][id] == true
+	end
+
 	services.Players = players
 	services.RunService = runService
 	services.ReplicatedStorage = replicatedStorage
@@ -503,6 +546,8 @@ local function buildServices(shared)
 	services.UserInputService = userInputService
 	services.DataStoreService = dataStoreService
 	services.SoundService = soundService
+	services.MarketplaceService = marketplaceService
+	services.GameplayService = gameplayService
 	return services
 end
 

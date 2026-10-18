@@ -14,6 +14,7 @@ local Flock = require(script.Parent.Flock)
 local Rings = require(script.Parent.Rings)
 local Difficulty = require(script.Parent.Difficulty)
 local Score = require(script.Parent.Score)
+local Perms = require(script.Parent.Perms)
 local Obstacles = require(script.Parent.Obstacles)
 
 export type Vec3 = Vec.Vec3
@@ -48,6 +49,8 @@ export type GameEvent = {
 }
 
 export type Game = {
+	--- Перки игрока (покупки за Robux), приходят с сервера.
+	perms: Perms.Perms,
 	--- Сид забега. Один и тот же сид у всех участников гонки даёт
 	--- полностью одинаковый курс (кольца, камни, раскладка стаи).
 	seed: number,
@@ -87,6 +90,7 @@ local Game = {}
 function Game.new(seed: number?): Game
 	local runSeed = seed or 20261018
 	local game: Game = {
+		perms = Perms.new(),
 		seed = runSeed,
 		mode = "playing",
 		time = 0,
@@ -129,6 +133,8 @@ function Game.reset(game: Game): ()
 	game.rings = Rings.new(game.seed + 1)
 	game.obstacles = Obstacles.new(game.seed + 2)
 	game.score = Score.new()
+	-- «Форсаж»: забег сразу начинается с двойного комбо.
+	game.score.combo = Perms.startCombo(game.perms)
 	game.phaseIndex = 1
 	game.lostTimer = 0
 	game.ringGraceLeft = nil
@@ -178,7 +184,11 @@ function Game.windVector(game: Game): Vec3
 	local cp = Course.pointAt(game.leaderPos.z)
 	local phase = Difficulty.phaseAt(game.time)
 	local scale = if game.mercyTime > 0 then Config.mercy.windFactor else 1.0
-	return Vec.scale(cp.right, Game.windStrength(game.time, phase) * scale)
+	-- «Ветрокром»: в интерфейсе ветер тоже не показывается.
+	return Vec.scale(
+		cp.right,
+		Game.windStrength(game.time, phase) * scale * Perms.windFactor(game.perms)
+	)
 end
 
 function Game.windStrength(time: number, phase: Difficulty.Phase): number
@@ -202,7 +212,8 @@ local function updateLeader(game: Game, dt: number, wind: Vec3, input: Input): (
 	game.boostStarted = false
 	if input.boost and game.boostCooldown <= 0 and game.boostTime <= 0 then
 		game.boostTime = Config.leader.boostDuration
-		game.boostCooldown = Config.leader.boostDuration + Config.leader.boostCooldown
+		game.boostCooldown = Config.leader.boostDuration
+			+ Perms.boostCooldown(game.perms, Config.leader.boostCooldown)
 		game.boostStarted = true
 	end
 	local boosting = game.boostTime > 0
@@ -291,7 +302,11 @@ function Game.step(game: Game, dt: number, input: Input): { GameEvent }
 
 	-- Ветер — поперечный, в системе координат курса (иначе он «плывёт» вместе с изгибом трассы).
 	local windScale = if mercyActive then Config.mercy.windFactor else 1.0
-	local wind = Vec.scale(cp.right, Game.windStrength(game.time, phase) * windScale)
+	-- «Ветрокром»: ветер не сносит ни вожака, ни стаю.
+	local wind = Vec.scale(
+		cp.right,
+		Game.windStrength(game.time, phase) * windScale * Perms.windFactor(game.perms)
+	)
 
 	updateLeader(game, dt, wind, input)
 

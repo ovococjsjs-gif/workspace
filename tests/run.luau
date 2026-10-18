@@ -11,6 +11,8 @@ require(script.Parent.test_flock)
 require(script.Parent.test_rings)
 require(script.Parent.test_difficulty)
 require(script.Parent.test_simulation)
+require(script.Parent.test_race)
+require(script.Parent.test_perms)
 
 local _, failed = T.run()
 

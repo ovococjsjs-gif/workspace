@@ -11,6 +11,7 @@
 local T = require(script.Parent.Framework)
 local Vec = require(script.Parent.Vec)
 local Game = require(script.Parent.Game)
+local Perms = require(script.Parent.Perms)
 local Config = require(script.Parent.Config)
 local Flock = require(script.Parent.Flock)
 
@@ -214,6 +215,40 @@ T.test("пилот без управления: игра не падает, ко
 	T.eq(game.mode, "playing", "без управления забег не должен сам проигрываться")
 	T.ok(game.score.score == 0, "без управления очков быть не должно")
 	T.ok(game.time > 0, "игра продолжалась")
+end)
+
+T.test("перки меняют игру: стартовое комбо, ветер, перезарядка рывка", function()
+	-- «Форсаж»: комбо ×2 на старте.
+	local fast = Game.new(5)
+	fast.perms = Perms.new()
+	fast.perms.fastStart = true
+	Game.reset(fast)
+	T.eq(fast.score.combo, 2, "с форсажем забег начинается с комбо ×2")
+
+	-- «Ветрокром»: ветер не сносит ни вожака, ни стаю.
+	local windy = Game.new(6)
+	local calm = Game.new(6)
+	windy.perms = Perms.new()
+	windy.perms.windproof = true
+	-- Гоняем оба забега до ветреной фазы.
+	for _ = 1, 60 * 60 do
+		Game.step(windy, DT, { x = 0, y = 0, z = 1 })
+		Game.step(calm, DT, { x = 0, y = 0, z = 1 })
+	end
+	local wProtected = Game.windVector(windy)
+	local wNormal = Game.windVector(calm)
+	T.ok(math.abs(wProtected.x) < 1e-6 and math.abs(wProtected.y) < 1e-6, "ветрокром: ветер равен нулю")
+	T.ok(math.abs(wNormal.x) > 0.01 or math.abs(wNormal.y) > 0.01, "без перка ветер дует")
+
+	-- «Золотой рывок»: перезарядка короче.
+	local boosted = Game.new(7)
+	boosted.perms = Perms.new()
+	boosted.perms.goldenBoost = true
+	Game.step(boosted, DT, { x = 0, y = 0, z = 1, boost = true })
+	T.ok(
+		boosted.boostCooldown < Config.leader.boostDuration + Config.leader.boostCooldown,
+		"перезарядка с перком короче: " .. tostring(boosted.boostCooldown)
+	)
 end)
 
 T.test("гонка: одинаковый сид даёт одинаковый курс, разный — разный", function()
