@@ -11,6 +11,7 @@ local Vec = require("./Vec")
 local Course = require("./Course")
 
 local MODE = "__MODE__" -- подставляется скриптом запуска
+local SECONDS = __SECONDS__ -- длительность забега, сек
 
 local function pilot(g: Game.Game, mode: string): Game.Input
 	local boost = false
@@ -51,7 +52,7 @@ end
 
 local game = Game.new(20261018)
 local maxDist = 0
-for i = 1, 60 * 90 do
+for i = 1, 60 * SECONDS do
 	local events = Game.step(game, 1 / 60, pilot(game, MODE))
 	for _, event in events do
 		for _, ring in event.rings do

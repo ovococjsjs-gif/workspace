@@ -49,7 +49,7 @@ local PHASES: { PhaseDef } = {
 	{
 		at = 45,
 		name = "ВЕТЕР",
-		ringRadius = 40.0,
+		ringRadius = 42.0,
 		grace = 2.6,
 		windStrength = 3.2,
 		obstacleChance = 0.15,
@@ -59,7 +59,7 @@ local PHASES: { PhaseDef } = {
 	{
 		at = 95,
 		name = "СКАЛЫ",
-		ringRadius = 34.0,
+		ringRadius = 38.0,
 		grace = 2.2,
 		windStrength = 5.0,
 		obstacleChance = 0.4,
@@ -69,7 +69,7 @@ local PHASES: { PhaseDef } = {
 	{
 		at = 150,
 		name = "БУРЯ",
-		ringRadius = 30.0,
+		ringRadius = 36.0,
 		grace = 1.8,
 		windStrength = 7.5,
 		obstacleChance = 0.65,

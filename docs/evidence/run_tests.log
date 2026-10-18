@@ -1,4 +1,4 @@
-# tools/run_tests.sh — 2026-10-18 10:47:11 UTC
+# tools/run_tests.sh — 2026-10-18 10:48:24 UTC
 == Юнит-тесты (luau /tmp/luau/build/luau) ==
   ok   Vec.norm нормализует вектор
   ok   Vec.norm нулевого вектора возвращает fallback

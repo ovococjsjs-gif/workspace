@@ -1,4 +1,4 @@
-# tools/smoke.sh — 2026-10-18 10:47:15 UTC
+# tools/smoke.sh — 2026-10-18 10:48:27 UTC
 HUD: сборка интерфейса
   ok   HUD.getShakeOffset возвращает Vector3-подобный объект
   ok   ScreenGui FlockGui создан в PlayerGui
