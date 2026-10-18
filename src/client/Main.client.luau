@@ -40,6 +40,7 @@ local state: ClientState = {
 	best = 0,
 }
 
+local panicWarned = false
 local camera = Workspace.CurrentCamera
 local camPos = Vec.new(0, 36, -30)
 
@@ -87,6 +88,8 @@ local function resetRun()
 	HUD.setPhase(Game.phase(game).name, 1)
 	HUD.setHint("WASD — курс, Space/Shift — высота")
 	HUD.setDanger(0)
+	HUD.setCalm(1)
+	panicWarned = false
 	HUD.setRingTimer(nil, nil)
 	Views.reset()
 end
@@ -124,7 +127,7 @@ local function handleEvent(event: Game.GameEvent)
 		HUD.toast("ФАЗА " .. tostring(event.phaseIndex) .. ": " .. event.phaseName, HUD.COLOR_ACCENT)
 	end
 
-	for _ = event.recovered do
+	for _ = 1, event.recovered do
 		HUD.toast("ПТИЦА В СТРОЮ +" .. tostring(Config.score.recoverBonus), HUD.COLOR_GOOD)
 		Audio.recover()
 	end
@@ -241,6 +244,16 @@ local function boot()
 				handleEvent(event)
 			end
 			HUD.setFlock(Game.flockAlive(game), Game.flockTotal(game))
+			local panic = game.flock.panic
+			HUD.setCalm(1 - panic)
+			if panic > 0.55 and not panicWarned then
+				panicWarned = true
+				Audio.panic(panic)
+				HUD.toast("СТАЯ ПАНИКУЕТ — ВЕДИ СПОКОЙНЕЕ", HUD.COLOR_BAD)
+				HUD.shake(0.5)
+			elseif panic < 0.3 then
+				panicWarned = false
+			end
 			local alive = Game.flockAlive(game)
 			HUD.setDanger(1 - (alive / math.max(1, Game.flockTotal(game))))
 			HUD.setRingTimer(game.ringGraceLeft, game.ringGraceTotal)
@@ -249,7 +262,7 @@ local function boot()
 		if state.game then
 			local cp = Course.pointAt(state.game.leaderPos.z)
 			World.update(state.game.leaderPos)
-			Views.updateLeader(state.game.leaderPos, state.game.leaderVel, cp.tangent)
+			Views.updateLeader(state.game.leaderPos, state.game.leaderVel, cp.tangent, state.game.flock.panic)
 			Views.updateBirds(state.game.flock)
 			Views.updateRings(state.game.rings, step, state.game.time)
 		end

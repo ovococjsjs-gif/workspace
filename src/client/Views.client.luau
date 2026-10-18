@@ -125,7 +125,7 @@ local function toVector(v: Vec.Vec3): Vector3
 	return Vector3.new(v.x, v.y, v.z)
 end
 
-function Views.updateLeader(leaderPos: Vec.Vec3, leaderVel: Vec.Vec3, courseForward: Vec.Vec3)
+function Views.updateLeader(leaderPos: Vec.Vec3, leaderVel: Vec.Vec3, courseForward: Vec.Vec3, panic: number?)
 	if not leaderPart or not leaderHalo or not tailPart then
 		return
 	end
@@ -141,6 +141,19 @@ function Views.updateLeader(leaderPos: Vec.Vec3, leaderVel: Vec.Vec3, courseForw
 
 	local tailPos = Vec.add(leaderPos, Vec.scale(forward, -3.2))
 	tailPart.Position = toVector(tailPos)
+
+	-- Нимб краснеет: стая нервничает из-за вожака.
+	local level = math.clamp(panic or 0, 0, 1)
+	leaderHalo.Color = Color3.fromRGB(
+		math.round(255 * level + 255 * (1 - level)),
+		math.round(220 * (1 - level) + 120 * level),
+		math.round(150 * (1 - level) + 96 * level)
+	)
+	leaderPart.Color = Color3.fromRGB(
+		255,
+		math.round(176 - 60 * level),
+		math.round(64 - 20 * level)
+	)
 end
 
 function Views.updateBirds(flock: Flock.Flock)

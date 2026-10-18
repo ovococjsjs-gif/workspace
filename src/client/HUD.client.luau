@@ -23,6 +23,9 @@ local comboStroke: UIStroke? = nil
 local flockLabel: TextLabel? = nil
 local flockBar: Frame? = nil
 local flockBarFill: Frame? = nil
+local calmLabel: TextLabel? = nil
+local calmBar: Frame? = nil
+local calmBarFill: Frame? = nil
 local phaseLabel: TextLabel? = nil
 local hintLabel: TextLabel? = nil
 local toastLabel: TextLabel? = nil
@@ -169,6 +172,33 @@ function HUD.build()
 	})
 	flockBarFill.Parent = flockBar
 	roundCorners(flockBarFill, 6)
+
+	-- Спокойствие стаи (под полосой стаи): главный «навыковый» индикатор.
+	calmLabel = textLabel(gui, {
+		Position = UDim2.new(1, -268, 0, 72),
+		Size = UDim2.fromOffset(240, 20),
+		TextSize = 13,
+		Text = "СПОКОЙСТВИЕ",
+		TextXAlignment = Enum.TextXAlignment.Right,
+		TextColor3 = COLOR_GOOD,
+	})
+	calmBar = new("Frame", {
+		Position = UDim2.new(1, -268, 0, 94),
+		Size = UDim2.fromOffset(240, 8),
+		BackgroundColor3 = Color3.fromRGB(20, 24, 30),
+		BackgroundTransparency = 0.35,
+		BorderSizePixel = 0,
+	})
+	calmBar.Parent = gui
+	roundCorners(calmBar, 4)
+	calmBarFill = new("Frame", {
+		Position = UDim2.fromOffset(0, 0),
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = COLOR_GOOD,
+		BorderSizePixel = 0,
+	})
+	calmBarFill.Parent = calmBar
+	roundCorners(calmBarFill, 4)
 
 	-- Фаза + подсказка (снизу).
 	phaseLabel = textLabel(gui, {
@@ -424,6 +454,29 @@ function HUD.setFlock(alive: number, total: number)
 			Size = UDim2.fromScale(ratio, 1),
 			BackgroundColor3 = if ratio > 0.6 then COLOR_GOOD elseif ratio > 0.3 then COLOR_ACCENT else COLOR_BAD,
 		}):Play()
+	end
+end
+
+--- Спокойствие стаи: 1 — стая спокойна, 0 — паника.
+function HUD.setCalm(calm: number)
+	local value = math.clamp(calm, 0, 1)
+	if calmBarFill then
+		TweenService:Create(calmBarFill, TweenInfo.new(0.15), {
+			Size = UDim2.fromScale(value, 1),
+			BackgroundColor3 = if value > 0.65 then COLOR_GOOD elseif value > 0.4 then COLOR_ACCENT else COLOR_BAD,
+		}):Play()
+	end
+	if calmLabel then
+		if value > 0.65 then
+			calmLabel.Text = "СПОКОЙСТВИЕ"
+			calmLabel.TextColor3 = COLOR_GOOD
+		elseif value > 0.4 then
+			calmLabel.Text = "СТАЯ ВОЛНУЕТСЯ"
+			calmLabel.TextColor3 = COLOR_ACCENT
+		else
+			calmLabel.Text = "ПАНИКА СТАИ!"
+			calmLabel.TextColor3 = COLOR_BAD
+		end
 	end
 end
 

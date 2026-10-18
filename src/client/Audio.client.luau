@@ -12,6 +12,8 @@ local SOUND = {
 	fail = "rbxasset://sounds/impact_water.mp3",
 	recover = "rbxasset://sounds/switch.wav",
 	ui = "rbxasset://sounds/button.wav",
+	--- "Ух" — крик стаи, когда она паникует.
+	panic = "rbxasset://sounds/uuhhh.mp3",
 }
 
 local function play(soundId: string, volume: number, pitch: number?)
@@ -52,6 +54,11 @@ end
 
 function Audio.recover()
 	play(SOUND.recover, 0.3, 1.2)
+end
+
+--- Крик паники: чем выше уровень, тем ниже тон.
+function Audio.panic(level: number)
+	play(SOUND.panic, 0.35, math.clamp(1.4 - level * 0.6, 0.6, 1.4))
 end
 
 function Audio.ui()
