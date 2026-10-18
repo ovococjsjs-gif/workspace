@@ -48,7 +48,12 @@ export type FlockContext = {
 	--- Турбулентность ветра (0..1): порыв бьёт по птицам неравномерно,
 	--- стая рвётся и вытягивается. В штиль — ноль.
 	turbulence: number?,
+	--- Переопределение конфигурации стаи (например, увеличенный радиус магнита).
+	cfg: FlockConfig?,
 }
+
+--- Конфигурация стаи (обычно Config.flock, но перки могут её менять).
+export type FlockConfig = typeof(Config.bird)
 
 export type FlockEvents = {
 	--- Индексы птиц, которые были подобраны в этом шаге.
@@ -106,7 +111,8 @@ end
 --- Шаг симуляции стаи. Возвращает события (подбор/потеря птиц).
 function Flock.step(flock: Flock, dt: number, ctx: FlockContext): FlockEvents
 	local events: FlockEvents = { recovered = {}, scattered = {} }
-	local cfg = Config.bird
+	-- Перки могут подменять конфиг стаи (например, радиус магнита).
+	local cfg = ctx.cfg or Config.bird
 	local birds = flock.birds
 
 	-- Уровень паники: растёт от нервозности вожака, затухает со временем.

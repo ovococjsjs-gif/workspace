@@ -33,6 +33,16 @@ T.test("«форсаж» даёт стартовое комбо ×2", function()
 	T.eq(Perms.startCombo(perms), 2)
 end)
 
+T.test("«магнит+» расширяет радиус подбора, «хозяйка» гасит панику", function()
+	local perms = Perms.new()
+	T.eq(Perms.magnetRadius(perms, 46.0), 46.0, "без перка радиус прежний")
+	T.eq(Perms.panicFactor(perms), 1.0, "без перка паника прежняя")
+	perms.magnetPlus = true
+	perms.calm = true
+	T.eq(Perms.magnetRadius(perms, 46.0), 69.0, "с перком радиус больше")
+	T.ok(Perms.panicFactor(perms) < 1.0, "с перком паника слабее")
+end)
+
 T.test("заряды мгновенного рывка считаются и тратятся", function()
 	local perms = Perms.fromTable({ boostCharges = 3 })
 	T.eq(perms.boostCharges, 3)

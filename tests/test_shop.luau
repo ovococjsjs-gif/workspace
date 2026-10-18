@@ -6,8 +6,8 @@
 local T = require(script.Parent.Framework)
 local ShopConfig = require(script.Parent.ShopConfig)
 
-T.test("в магазине четыре товара с описанием и ценой", function()
-	T.eq(#ShopConfig.items, 4, "товаров: 4")
+T.test("в магазине шесть товаров с описанием и ценой", function()
+	T.eq(#ShopConfig.items, 6, "товаров: 6")
 	for _, item in ShopConfig.items do
 		T.ok(type(item.key) == "string" and item.key ~= "", "у товара есть ключ")
 		T.ok(type(item.title) == "string" and item.title ~= "", "у товара есть название")

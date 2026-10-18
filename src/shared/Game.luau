@@ -51,6 +51,8 @@ export type GameEvent = {
 export type Game = {
 	--- Перки игрока (покупки за Robux), приходят с сервера.
 	perms: Perms.Perms,
+	--- Конфигурация стаи с учётом перков (радиус магнита и т.п.).
+	flockCfg: Flock.FlockConfig,
 	--- Сид забега. Один и тот же сид у всех участников гонки даёт
 	--- полностью одинаковый курс (кольца, камни, раскладка стаи).
 	seed: number,
@@ -91,6 +93,7 @@ function Game.new(seed: number?, perms: Perms.Perms?): Game
 	local runSeed = seed or 20261018
 	local game: Game = {
 		perms = perms or Perms.new(),
+		flockCfg = table.clone(Config.bird),
 		seed = runSeed,
 		mode = "playing",
 		time = 0,
@@ -130,6 +133,9 @@ function Game.reset(game: Game): ()
 	game.boostStarted = false
 	game.mercyTime = 0
 	game.flock = Flock.new(Config.flockSize, game.seed)
+	-- Перки меняют параметры стаи: например, «Магнит+» расширяет зону подбора.
+	game.flockCfg = table.clone(Config.bird)
+	game.flockCfg.magnetRadius = Perms.magnetRadius(game.perms, Config.bird.magnetRadius)
 	game.rings = Rings.new(game.seed + 1)
 	game.obstacles = Obstacles.new(game.seed + 2)
 	game.score = Score.new()
@@ -327,7 +333,8 @@ function Game.step(game: Game, dt: number, input: Input): { GameEvent }
 
 	-- Нервозность — сглаженная величина: одиночный рывок не пугает стаю,
 	-- а вот постоянная дёрганая работа — да. Так «спокойствие» — реальный навык.
-	local raw = math.clamp(math.max(mismatch * 7.0, inputJerk), 0, 1)
+	-- «Хозяйка»: вожак нервничает меньше — стая спокойнее.
+	local raw = math.clamp(math.max(mismatch * 7.0, inputJerk) * Perms.panicFactor(game.perms), 0, 1)
 	game.agitation = game.agitation + (raw - game.agitation) * math.clamp(dt * 3.0, 0, 1)
 
 	-- Камни отталкивают птиц (во время затишья их нет).
@@ -349,6 +356,7 @@ function Game.step(game: Game, dt: number, input: Input): { GameEvent }
 		time = game.time,
 		leaderAgitation = game.agitation,
 		turbulence = phase.windStrength * 0.12 * windScale,
+		cfg = game.flockCfg,
 	}
 	local flockEvents = Flock.step(game.flock, dt, ctx)
 	event.recovered = #flockEvents.recovered

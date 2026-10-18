@@ -39,6 +39,8 @@ local ShopConfig: ShopConfig = {
 		goldenBoost = 0,
 		windproof = 0,
 		fastStart = 0,
+		magnetPlus = 0,
+		calm = 0,
 	},
 	products = {
 		boostPack = 0,
@@ -63,6 +65,20 @@ local ShopConfig: ShopConfig = {
 			title = "ФОРСАЖ",
 			desc = "Забег начинается с комбо x2",
 			price = 99,
+			repeatable = false,
+		},
+		{
+			key = "magnetPlus",
+			title = "МАГНИТ+",
+			desc = "Радиус подбора потерянных птиц в полтора раза больше",
+			price = 59,
+			repeatable = false,
+		},
+		{
+			key = "calm",
+			title = "ХОЗЯЙКА",
+			desc = "Стая нервничает заметно меньше: меньше потерь",
+			price = 89,
 			repeatable = false,
 		},
 		{

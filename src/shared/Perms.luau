@@ -13,6 +13,10 @@ export type Perms = {
 	windproof: boolean,
 	--- «Форсаж»: забег начинается с двойного комбо.
 	fastStart: boolean,
+	--- «Магнит+»: радиус магнита увеличен вдвое.
+	magnetPlus: boolean,
+	--- «Хозяйка»: стая нервничает заметно меньше.
+	calm: boolean,
 	--- Заряды «мгновенного рывка» (developer product, можно покупать повторно).
 	boostCharges: number,
 }
@@ -24,6 +28,8 @@ function Perms.new(): Perms
 		goldenBoost = false,
 		windproof = false,
 		fastStart = false,
+		magnetPlus = false,
+		calm = false,
 		boostCharges = 0,
 	}
 end
@@ -37,6 +43,8 @@ function Perms.fromTable(data: any): Perms
 	perms.goldenBoost = data.goldenBoost == true
 	perms.windproof = data.windproof == true
 	perms.fastStart = data.fastStart == true
+	perms.magnetPlus = data.magnetPlus == true
+	perms.calm = data.calm == true
 	if type(data.boostCharges) == "number" then
 		perms.boostCharges = math.max(0, math.floor(data.boostCharges))
 	end
@@ -63,6 +71,22 @@ end
 function Perms.startCombo(perms: Perms): number
 	if perms.fastStart then
 		return 2
+	end
+	return 1
+end
+
+--- Радиус магнита с учётом перка.
+function Perms.magnetRadius(perms: Perms, base: number): number
+	if perms.magnetPlus then
+		return base * 1.5
+	end
+	return base
+end
+
+--- Множитель нервозности вожака: «Хозяйка» гасит панику стаи.
+function Perms.panicFactor(perms: Perms): number
+	if perms.calm then
+		return 0.55
 	end
 	return 1
 end

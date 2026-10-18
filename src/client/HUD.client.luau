@@ -62,6 +62,8 @@ local SHOP_ITEMS = {
 	{ key = "goldenBoost", title = "ЗОЛОТОЙ РЫВОК", desc = "Перезарядка рывка вдвое короче", price = "49 Robux" },
 	{ key = "windproof", title = "ВЕТРОКРОМ", desc = "Ветер больше не сносит вожаку и стаю", price = "79 Robux" },
 	{ key = "fastStart", title = "ФОРСАЖ", desc = "Забег начинается с комбо x2", price = "99 Robux" },
+	{ key = "magnetPlus", title = "МАГНИТ+", desc = "Радиус подбора птиц больше в 1.5 раза", price = "59 Robux" },
+	{ key = "calm", title = "ХОЗЯЙКА", desc = "Стая нервничает меньше: меньше потерь", price = "89 Robux" },
 	{ key = "boostPack", title = "ЗАРЯДЫ РЫВКА x3", desc = "Три мгновенных рывка (можно покупать снова)", price = "25 Robux" },
 }
 
@@ -562,7 +564,7 @@ function HUD.build()
 	})
 	shopSub.Parent = shopScreen
 	for i, item in SHOP_ITEMS do
-		local top = 90 + (i - 1) * 82
+		local top = 80 + (i - 1) * 74
 		local title = textLabel(shopScreen, {
 			Position = UDim2.new(0.5, -320, 0, top),
 			Size = UDim2.fromOffset(440, 28),

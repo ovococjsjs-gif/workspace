@@ -251,6 +251,22 @@ T.test("перки меняют игру: стартовое комбо, вет�
 	)
 end)
 
+T.test("перк «магнит+» расширяет радиус подбора птиц", function()
+	local withPerm = Game.new(11)
+	local without = Game.new(11)
+	withPerm.perms = Perms.new()
+	withPerm.perms.magnetPlus = true
+	Game.reset(withPerm)
+	Game.reset(without)
+	T.ok(
+		withPerm.flockCfg.magnetRadius > without.flockCfg.magnetRadius,
+		"радиус магнита больше с перком: "
+			.. tostring(withPerm.flockCfg.magnetRadius)
+			.. " против "
+			.. tostring(without.flockCfg.magnetRadius)
+	)
+end)
+
 T.test("гонка: одинаковый сид даёт одинаковый курс, разный — разный", function()
 	local a = Game.new(4242)
 	local b = Game.new(4242)
