@@ -71,11 +71,19 @@ function CFType.new(x, y, z)
 	return setmetatable({
 		p = V3Type.new(x or 0, y or 0, z or 0),
 		r = V3Type.zero,
+		RightVector = V3Type.new(1, 0, 0),
+		UpVector = V3Type.new(0, 1, 0),
 	}, CFType)
 end
 
 function CFType.lookAt(from, to)
-	return setmetatable({ p = from, look = to, r = V3Type.zero }, CFType)
+	return setmetatable({
+		p = from,
+		look = to,
+		r = V3Type.zero,
+		RightVector = V3Type.new(1, 0, 0),
+		UpVector = V3Type.new(0, 1, 0),
+	}, CFType)
 end
 
 function CFType.fromMatrix(pos, right, up, back)

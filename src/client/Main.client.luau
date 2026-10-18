@@ -151,12 +151,15 @@ local function handleEvent(event: Game.GameEvent)
 
 	for _, ring in event.rings do
 		if ring.result == "perfect" then
-			HUD.toast("ЧИСТО! +" .. tostring(ring.points), HUD.COLOR_GOOD)
+			HUD.toast("ЧИСТО! " .. tostring(ring.passedCount) .. "/" .. tostring(ring.totalCount) .. "  +" .. tostring(ring.points), HUD.COLOR_GOOD)
 			HUD.flashScreen(HUD.COLOR_GOOD, 0.22)
 			HUD.setCombo(state.game and state.game.score.combo or 1)
 			Audio.perfect(state.game and state.game.score.combo or 1)
 		elseif ring.result == "partial" then
-			HUD.toast("ЧАСТИЧНО +" .. tostring(ring.points), HUD.COLOR_ACCENT)
+			HUD.toast(
+				"ЧАСТИЧНО " .. tostring(ring.passedCount) .. "/" .. tostring(ring.totalCount) .. "  +" .. tostring(ring.points),
+				HUD.COLOR_ACCENT
+			)
 			HUD.setCombo(state.game and state.game.score.combo or 1)
 			Audio.ring(state.game and state.game.score.combo or 1)
 		else
@@ -177,6 +180,33 @@ local function handleEvent(event: Game.GameEvent)
 	if event.gameOver then
 		endRun(state.game and state.game.score.score or 0)
 	end
+end
+
+--- Указывает стрелкой на ближайшую потерянную птицу.
+local function updateStrayArrow(game: Game.Game)
+	if not camera then
+		HUD.setStrayDirection(nil, nil)
+		return
+	end
+	local camPos = camera.CFrame.Position
+	local right = camera.CFrame.RightVector
+	local up = camera.CFrame.UpVector
+
+	local bestAngle: number? = nil
+	local bestDist = math.huge
+	for _, bird in game.flock.birds do
+		if bird.mode == "lost" then
+			local toBird = Vec.sub(bird.pos, camPos)
+			local dist = Vec.len(toBird)
+			if dist < bestDist then
+				bestDist = dist
+				local sx = toBird.x * right.x + toBird.y * right.y + toBird.z * right.z
+				local sy = toBird.x * up.x + toBird.y * up.y + toBird.z * up.z
+				bestAngle = math.atan2(-sy, sx)
+			end
+		end
+	end
+	HUD.setStrayDirection(bestAngle, bestDist)
 end
 
 --------------------------------------------------------------------------- камера
@@ -270,6 +300,7 @@ local function boot()
 			)
 			local panic = game.flock.panic
 			HUD.setCalm(1 - panic)
+			updateStrayArrow(game)
 			if panic > 0.55 and not panicWarned then
 				panicWarned = true
 				Audio.panic(panic)

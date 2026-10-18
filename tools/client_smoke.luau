@@ -69,6 +69,11 @@ step("HUD: сборка интерфейса", function()
 	HUD.showStart(true)
 	HUD.showStart(false)
 
+	-- Стрелка к потерянной птице: направление задаётся и снимается без ошибок.
+	HUD.setStrayDirection(0.8, 120)
+	HUD.setStrayDirection(nil, nil)
+	check(true, "HUD.setStrayDirection отработал")
+
 	-- Проверяем, что интерфейс действительно построился в PlayerGui.
 	local playerGui = services.Players.LocalPlayer:WaitForChild("PlayerGui")
 	local screens = playerGui:FindFirstChild("FlockGui")

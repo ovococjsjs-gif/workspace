@@ -44,6 +44,7 @@ local endScore: TextLabel? = nil
 local endBest: TextLabel? = nil
 local endStats: TextLabel? = nil
 local reticle: Frame? = nil
+local strayArrow: TextLabel? = nil
 local shakeOffset = Vector3.zero
 
 HUD.COLOR_TEXT = Color3.fromRGB(255, 255, 255)
@@ -296,6 +297,17 @@ function HUD.build()
 	reticle.Parent = gui
 	roundCorners(reticle, 16)
 
+	-- Стрелка к ближайшей потерянной птице: показывает, куда её искать.
+	strayArrow = textLabel(gui, {
+		Position = UDim2.new(0.5, -20, 0.5, -180),
+		Size = UDim2.fromOffset(40, 40),
+		TextSize = 34,
+		Text = "▼",
+		TextColor3 = COLOR_BAD,
+		Visible = false,
+	})
+	strayArrow.Parent = gui
+
 	-- Экран старта.
 	startScreen = new("Frame", {
 		BackgroundColor3 = Color3.fromRGB(12, 16, 24),
@@ -544,6 +556,27 @@ function HUD.setBoost(cooldown: number, total: number, active: boolean)
 			boostLabel.TextColor3 = COLOR_GOOD
 		end
 	end
+end
+
+--- Стрелка к потерянной птице: angle — направление на экране (рад.),
+--- distance — расстояние (для цвета/размера). nil — прячем стрелку.
+function HUD.setStrayDirection(angle: number?, distance: number?)
+	if not strayArrow then
+		return
+	end
+	if not angle or not distance then
+		strayArrow.Visible = false
+		return
+	end
+	strayArrow.Visible = true
+	local radius = 150
+	local x = math.cos(angle) * radius
+	local y = -math.sin(angle) * radius
+	strayArrow.Position = UDim2.new(0.5, x - 20, 0.5, y - 20)
+	strayArrow.Rotation = math.deg(angle) + 90
+	local far = math.clamp(distance / 400, 0, 1)
+	strayArrow.TextTransparency = 0.15 + far * 0.5
+	strayArrow.TextSize = 34 - far * 10
 end
 
 function HUD.setPhase(name: string, index: number)
