@@ -17,7 +17,6 @@ local Vec = require(Shared.Vec)
 local Config = require(Shared.Config)
 local Course = require(Shared.Course)
 local Game = require(Shared.Game)
-local Flock = require(Shared.Flock)
 local Score = require(Shared.Score)
 
 local Input = require(script.Parent.Input)
