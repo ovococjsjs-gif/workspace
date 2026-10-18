@@ -56,8 +56,10 @@ Roblox-API**. Roblox-слой только рисует и читает ввод
 |---|---|---|
 | `bash tools/run_tests.sh` | 40 юнит-тестов + `luau-analyze` без ошибок | [`evidence/run_tests.log`](evidence/run_tests.log) |
 | `bash tools/check_syntax.sh` | `luau-compile` проходит по всем 24 файлам `src/` и `tests/` | [`evidence/check_syntax.log`](evidence/check_syntax.log) |
+| `bash tools/smoke.sh` | клиент и сервер **выполняются** headless против мока Roblox API: 16 проверок, 0 провалов | [`evidence/smoke.log`](evidence/smoke.log) |
 | `bash tools/probe.sh` | headless-забег: кольца засчитываются, счёт и комбо растут | [`evidence/probe.log`](evidence/probe.log) |
 | `bash tools/scenario.sh calm` | «спокойный пилот»: 36 колец, 33 чистых, стая цела (18/18), счёт 15660 | [`evidence/scenario_calm.log`](evidence/scenario_calm.log) |
+| `bash tools/scenario.sh booster` | «пилот с рывками»: 37 колец, 34 чистых, стая цела, счёт 16140 (чуть больше «спокойного») | [`evidence/scenario_booster.log`](evidence/scenario_booster.log) |
 | `bash tools/scenario.sh reckless` | «паникующий пилот»: стая рассыпается 18→3, забег завершается проигрышем | [`evidence/scenario_reckless.log`](evidence/scenario_reckless.log) |
 
 `tools/scenario.sh` — это, по сути, «автотест баланса»: два сценария пилота
@@ -83,12 +85,35 @@ Roblox-API**. Roblox-слой только рисует и читает ввод
 * `default.project.json` — манифест Rojo: `ReplicatedStorage.FlockShared`,
   `ServerScriptService.FlockServer`, `StarterPlayerScripts.FlockClient`.
 
-**Доказательство (ограниченное):** `bash tools/check_syntax.sh` → «Синтаксис:
-ошибок нет (24 файлов)». Это проверка **синтаксиса**, а не исполнения в Roblox:
-Roblox-глобалы (`game`, `workspace`, `Instance`) в CLI не резолвятся, поэтому
-клиент и сервер исполнены в Roblox не были (см. раздел 2).
+**Доказательство (ограниченное):**
 
-### 1.4. Документация
+* `bash tools/check_syntax.sh` → «Синтаксис: ошибок нет (24 файлов)».
+* `bash tools/smoke.sh` → «SMOKE: проверок 16, провалов 0»: клиент и сервер
+  **выполняются** headless против мока Roblox API
+  (`tools/roblox_mock.luau`): HUD строится (31 элемент интерфейса), мир
+  создаёт 18 птиц и 48 сегментов колец, 90 кадров игрового цикла отрабатывают
+  без исключений, кнопка «ПОЛЕТЕЛИ» запускает забег, клавиатура, мышь и потеря
+  фокуса обрабатываются без ошибок, серверный модуль загружается.
+
+Мок — это не Roblox: он не проверяет отрисовку, реальные ассеты и семантику
+движка (см. раздел 2), но позволяет поймать ошибки **выполнения**. Именно так
+был найден баг в `src/client/World.client.luau`: в `World.update` обращение
+`KINDS[index]` выходило за границы массива (индекс до 54 при 6 видах) — в
+Studio это был бы error каждый кадр. Исправлено (шаг хранится в самом пропсе).
+
+### 1.4. Инструмент «мок Roblox API»
+
+`tools/roblox_mock.luau` — минимальная реализация API Roblox на чистом Luau
+(`Instance`, `Vector3`, `CFrame`, `UDim2`, `UDim`, `Color3`, `Enum`, `TweenInfo`,
+`NumberSequence`/`ColorSequence`, `TweenService`, `UserInputService`,
+`RunService`, `Players`, `DataStoreService`, `SoundService`, `Lighting`).
+`tools/client_smoke.luau` на его основе поднимает клиент и сервер, строит
+интерфейс и мир, прогоняет кадры игрового цикла с вводом и проверяет
+результат (16 проверок). Особенность CLI: каждый `require`-модуль получает
+свою копию глобалов, поэтому `tools/prepare_sandbox.sh` добавляет в клиентские
+и серверные копии заголовок с локальными алиасами на мок.
+
+### 1.5. Документация
 
 * `docs/BRAINSTORM.md` — 18 идей с оценкой (оригинальность / залипательность /
   реализуемость за 2 часа без Studio) и обоснование выбора «СТАЯ».
@@ -104,10 +129,11 @@ Roblox-глобалы (`game`, `workspace`, `Instance`) в CLI не резолв
 запускался** (в песочнице нет Studio и нет доступа к Roblox-серверам).
 
 1. **Визуал целиком**: птицы, кольца, мембраны, нимб, Trail, «бесконечная»
-   земля, пул декораций, Lighting. Риск: ошибки в CFrame/поворотах,
-   неверный `Enum`, объекты в `workspace` без `Anchored`.
+   земля, пул декораций, Lighting. Код выполняется (smoke-тест), но против
+   мока API; риск остаётся в CFrame/поворотах, реальном `Enum`, поведении
+   `Trail`/`LightEmission` и наслаивании прозрачности.
 2. **Камера**: `CFrame.lookAt` + сглаженное слежение; в Studio может
-   «дёргаться» на резких поворотах.
+   «дёргаться» на резких поворотах (мок не проверяет поведение камеры).
 3. **HUD**: раскладка на разных разрешениях, твины, виньетка. Не проверено,
    что элементы не перекрываются на 16:9.
 4. **Звук**: используются движковые ассеты (`electronicpingshort.wav`,
@@ -120,7 +146,8 @@ Roblox-глобалы (`game`, `workspace`, `Instance`) в CLI не резолв
 6. **Сетевая валидация рекорда**: `Score.isPlausible` покрыта юнит-тестами на
    чистой функции, но сам remote-протокол в Studio не прогонялся.
 7. **Ввод игрока**: нормализация диагоналей и сброс залипающих клавиш покрыты
-   кодом, но «живую» отзывчивость в Studio не оценивал.
+   кодом и прогоном через мок (события `InputBegan`/`InputEnded`/
+   `WindowFocusReleased`), но «живую» отзывчивость в Studio не оценивал.
 8. **Роблокс-API в `Game.step` не используется намеренно** — это осознанное
    ограничение: клиент авторитетен для аркадной симуляции, сервер отвечает
    только за рекорд. Взлом клиента может накрутить счёт, но не обойти

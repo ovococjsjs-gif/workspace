@@ -68,6 +68,20 @@ step("HUD: сборка интерфейса", function()
 	HUD.showEnd(false, 0, 0, "")
 	HUD.showStart(true)
 	HUD.showStart(false)
+
+	-- Проверяем, что интерфейс действительно построился в PlayerGui.
+	local playerGui = services.Players.LocalPlayer:WaitForChild("PlayerGui")
+	local screens = playerGui:FindFirstChild("FlockGui")
+	check(screens ~= nil, "ScreenGui FlockGui создан в PlayerGui")
+	if screens then
+		local frames = 0
+		for _, child in ipairs(screens:GetDescendants()) do
+			if child:IsA("Frame") or child:IsA("TextLabel") or child:IsA("TextButton") then
+				frames += 1
+			end
+		end
+		check(frames > 20, "в HUD построено много элементов: " .. tostring(frames))
+	end
 end)
 
 --------------------------------------------------------------------------- World и Views
@@ -98,6 +112,24 @@ step("Views: вожак, птицы, кольца, камни", function()
 	Views.updateObstacles(game.obstacles, game.time)
 	check(true, "Views.update* отработали без ошибок")
 
+	-- Птицы и кольца должны были появиться в мире.
+	local birds = 0
+	for _, child in ipairs(Mock.services.Workspace:GetDescendants()) do
+		local partName = tostring(child.Name or "")
+		if child:IsA("Part") and partName:sub(1, 4) == "Bird" then
+			birds += 1
+		end
+	end
+	check(birds == 18, "в мире 18 птиц: " .. tostring(birds))
+	local rings = 0
+	for _, child in ipairs(Mock.services.Workspace:GetDescendants()) do
+		local partName = tostring(child.Name or "")
+		if child:IsA("Part") and partName:sub(1, 11) == "RingSegment" then
+			rings += 1
+		end
+	end
+	check(rings > 0, "кольца отрисованы: " .. tostring(rings) .. " сегментов")
+
 	-- Проверяем, что пропавшие птицы получили маячок.
 	local lost = 0
 	for _, bird in game.flock.birds do
@@ -125,6 +157,28 @@ step("Main: запуск клиента и кадры игрового цикл�
 		end
 	end
 	check(frames > 0, "обработчик Heartbeat выполнил кадров: " .. tostring(frames))
+
+	-- Кнопка «ПОЛЕТЕЛИ» должна запускать забег.
+	local playerGui = services.Players.LocalPlayer:WaitForChild("PlayerGui")
+	local screen = playerGui:FindFirstChild("FlockGui")
+	local button
+	if screen then
+		for _, child in ipairs(screen:GetDescendants()) do
+			if child:IsA("TextButton") and child.Text == "ПОЛЕТЕЛИ" then
+				button = child
+			end
+		end
+	end
+	check(button ~= nil, "кнопка старта найдена")
+	if button then
+		for _, fn in ipairs(button.MouseButton1Click.__signals) do
+			fn()
+		end
+		for _, fn in ipairs(heartbeat.__signals) do
+			fn(1 / 60)
+		end
+		check(true, "забег запущен по кнопке")
+	end
 
 	-- Ввод: зажимаем клавиши и отпускаем.
 	local uis = services.UserInputService

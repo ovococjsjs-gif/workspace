@@ -20,8 +20,9 @@
 
 ```bash
 bash tools/build_luau.sh          # соберёт luau, luau-analyze, luau-compile в /tmp/luau/build
-bash tools/run_tests.sh            # юнит-тесты + luau-analyze общей логики
+bash tools/run_tests.sh            # юнит-тесты + smoke-тест клиента/сервера + luau-analyze
 bash tools/check_syntax.sh         # luau-compile по всем файлам src/ и tests/
+bash tools/smoke.sh                # клиент и сервер против мока Roblox API
 bash tools/probe.sh                # headless-прогон забега: кольца, счёт, комбо
 bash tools/scenario.sh calm        # сценарий «спокойный пилот»
 bash tools/scenario.sh reckless    # сценарий «паникующий пилот»
@@ -32,6 +33,7 @@ bash tools/scenario.sh booster     # сценарий «пилот с рывка
 
 ```
 TESTS PASSED: 43/43
+SMOKE: проверок 16, провалов 0
 luau-analyze: ошибок нет
 ```
 
@@ -159,6 +161,20 @@ rojo build default.project.json -o flock.rbxlx
 
 ---
 
+### 3.9. Как проверяется клиентский код
+
+Roblox Studio в песочнице недоступна, но клиентский код можно **выполнить**
+headless: `tools/roblox_mock.luau` реализует минимальный API Roblox
+(`Instance`, `Vector3`, `CFrame`, `UDim2`, `Color3`, `Enum`, `TweenService`,
+`UserInputService`, `RunService`, `Players`, `DataStoreService` и т.д.).
+`tools/smoke.sh` на этой основе поднимает клиент, строит HUD/мир/визуалы и
+прогоняет 90 кадров игрового цикла с вводом.
+
+Мок — не Roblox: он не проверяет отрисовку и реальные ассеты, но ловит
+ошибки выполнения. Именно так был найден и исправлен баг в `World.update`
+(обращение к `KINDS[index]` выходило за границы массива — в Studio это был бы
+error каждый кадр).
+
 ## 4. Архитектура
 
 ```
@@ -226,19 +242,26 @@ reckless: счёт=1200,  колец=24, чистых=0,  живо 3/18  -> ИГ
 
 **Проверено в репозитории (команды + вывод в логах):**
 
-* `tools/run_tests.sh` → `TESTS PASSED: 43/43`, `luau-analyze: ошибок нет`
+* `tools/run_tests.sh` → `TESTS PASSED: 43/43`, `SMOKE: проверок 16, провалов 0`,
+  `luau-analyze: ошибок нет`
 * `tools/check_syntax.sh` → синтаксис без ошибок (24 файла)
+* `tools/smoke.sh` → клиентский и серверный слои **выполняются** headless против
+  мока Roblox API (`tools/roblox_mock.luau`): интерфейс строится, 18 птиц и
+  кольца появляются в мире, 90 кадров игрового цикла отрабатывают, кнопка
+  старта запускает забег, клавиатура и мышь обрабатываются без ошибок
 * сценарные прогоны игрового цикла: кольца, счёт, комбо, паника, проигрыш,
   детерминизм, отсутствие NaN/Inf
 
 **Не проверено (нужен Roblox Studio / Roblox-сервер):**
 
-* визуал: птицы, кольца, камера, HUD — код написан, но в Studio не запускался;
+* как это **выглядит**: код клиента выполняется, но против мока API, а не
+  против настоящего Roblox — реальная отрисовка, свет, тени, поведение
+  Trail/мембран не проверены;
 * звуки: используются `rbxasset://sounds/*`; если ассета нет — звук не
   проиграется (обработано через pcall, ошибок не будет);
 * DataStore и сетевая валидация рекорда: код есть, реальный запрос не выполнялся;
-* поведение под реальным вводом игрока (сглаживание осей проверено только
-  юнит-тестами и сценариями).
+* поведение под реальным вводом игрока: сглаживание осей проверено только
+  юнит-тестами, сценариями и прогоном ввода через мок.
 
 Подробный разбор — в [`docs/REPORT.md`](docs/REPORT.md), обоснование
 концепции — в [`docs/BRAINSTORM.md`](docs/BRAINSTORM.md).
