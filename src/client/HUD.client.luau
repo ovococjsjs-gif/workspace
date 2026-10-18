@@ -38,6 +38,7 @@ local endTitle: TextLabel? = nil
 local endScore: TextLabel? = nil
 local endBest: TextLabel? = nil
 local endStats: TextLabel? = nil
+local endPlace: TextLabel? = nil
 local reticle: Frame? = nil
 local strayArrow: TextLabel? = nil
 local timeLabel: TextLabel? = nil
@@ -47,6 +48,22 @@ local phaseBarFill: Frame? = nil
 local shakeOffset = Vector3.zero
 local touchBase: Frame? = nil
 local touchKnob: Frame? = nil
+local countdownLabel: TextLabel? = nil
+local standingsPanel: Frame? = nil
+local standingsLabel: TextLabel? = nil
+local standingsRows: { TextLabel } = {}
+local shopScreen: Frame? = nil
+local shopButton: TextButton? = nil
+local shopRows: { [string]: { button: TextButton?, status: TextLabel?, price: string } } = {}
+
+--- Товары магазина: ключ перка, название, описание, цена (Robux).
+--- Идентификаторы покупок задаются в Creator Dashboard и в src/server/Main.server.luau.
+local SHOP_ITEMS = {
+	{ key = "goldenBoost", title = "ЗОЛОТОЙ РЫВОК", desc = "Перезарядка рывка вдвое короче", price = "49 Robux" },
+	{ key = "windproof", title = "ВЕТРОКРОМ", desc = "Ветер больше не сносит вожаку и стаю", price = "79 Robux" },
+	{ key = "fastStart", title = "ФОРСАЖ", desc = "Забег начинается с комбо x2", price = "99 Robux" },
+	{ key = "boostPack", title = "ЗАРЯДЫ РЫВКА x3", desc = "Три мгновенных рывка (можно покупать снова)", price = "25 Robux" },
+}
 
 HUD.COLOR_TEXT = Color3.fromRGB(255, 255, 255)
 HUD.COLOR_ACCENT = Color3.fromRGB(255, 196, 84)
@@ -426,6 +443,14 @@ function HUD.build()
 		Text = "РЕКОРД 0",
 		TextColor3 = COLOR_ACCENT,
 	})
+	endPlace = textLabel(endScreen, {
+		Position = UDim2.new(0.5, -400, 0.5, 60),
+		Size = UDim2.fromOffset(800, 30),
+		TextSize = 24,
+		Text = "",
+		TextColor3 = COLOR_ACCENT,
+		Visible = false,
+	})
 	endStats = textLabel(endScreen, {
 		Position = UDim2.new(0.5, -400, 0.5, 30),
 		Size = UDim2.fromOffset(800, 32),
@@ -450,6 +475,149 @@ function HUD.build()
 	HUD.againButton = againButton
 
 	-- Виртуальный стик для сенсорного управления (виден только при касании).
+	-- Обратный отсчёт до старта забега.
+	countdownLabel = textLabel(gui, {
+		Position = UDim2.new(0.5, -320, 0.5, -140),
+		Size = UDim2.fromOffset(640, 150),
+		TextSize = 110,
+		Text = "",
+		TextColor3 = COLOR_ACCENT,
+		TextStrokeTransparency = 0.7,
+		Visible = false,
+		ZIndex = 20,
+	})
+	countdownLabel.Parent = gui
+
+	-- Живой рейтинг гонки (справа сверху).
+	standingsPanel = new("Frame", {
+		BackgroundColor3 = Color3.fromRGB(12, 16, 24),
+		BackgroundTransparency = 0.35,
+		BorderSizePixel = 0,
+		Size = UDim2.fromOffset(300, 156),
+		Position = UDim2.new(1, -320, 0, 18),
+		Visible = false,
+		ZIndex = 6,
+	})
+	standingsPanel.Parent = gui
+	roundCorners(standingsPanel, 14)
+	standingsLabel = textLabel(standingsPanel, {
+		Position = UDim2.fromOffset(14, 6),
+		Size = UDim2.fromOffset(276, 24),
+		TextSize = 15,
+		Text = "ЗАБЕГ",
+		TextColor3 = COLOR_ACCENT,
+	})
+	for i = 1, 5 do
+		local row = textLabel(standingsPanel, {
+			Position = UDim2.fromOffset(14, 32 + (i - 1) * 23),
+			Size = UDim2.fromOffset(276, 22),
+			TextSize = 15,
+			Text = "",
+		})
+		table.insert(standingsRows, row)
+	end
+
+	-- Кнопка магазина.
+	shopButton = new("TextButton", {
+		BackgroundColor3 = Color3.fromRGB(30, 38, 52),
+		BorderSizePixel = 0,
+		Text = "МАГАЗИН",
+		TextSize = 18,
+		Font = Enum.Font.GothamBold,
+		TextColor3 = COLOR_ACCENT,
+		Position = UDim2.new(0.5, -75, 1, -70),
+		Size = UDim2.fromOffset(150, 44),
+		ZIndex = 12,
+	})
+	shopButton.Parent = gui
+	roundCorners(shopButton, 14)
+	HUD.shopButton = shopButton
+
+	-- Панель магазина.
+	shopScreen = new("Frame", {
+		Name = "ShopPanel",
+		BackgroundColor3 = Color3.fromRGB(10, 14, 22),
+		BackgroundTransparency = 0.12,
+		BorderSizePixel = 0,
+		Size = UDim2.fromScale(1, 1),
+		Visible = false,
+		ZIndex = 30,
+	})
+	shopScreen.Parent = gui
+	local shopTitle = textLabel(shopScreen, {
+		Position = UDim2.new(0.5, -320, 0.1, 0),
+		Size = UDim2.fromOffset(640, 50),
+		TextSize = 34,
+		Text = "МАГАЗИН",
+		TextColor3 = COLOR_ACCENT,
+	})
+	shopTitle.Parent = shopScreen
+	local shopSub = textLabel(shopScreen, {
+		Position = UDim2.new(0.5, -320, 0.1, 48),
+		Size = UDim2.fromOffset(640, 28),
+		TextSize = 16,
+		Text = "Покупки за Robux: перки действуют сразу, без перезагрузки.",
+		TextTransparency = 0.3,
+	})
+	shopSub.Parent = shopScreen
+	for i, item in SHOP_ITEMS do
+		local top = 90 + (i - 1) * 82
+		local title = textLabel(shopScreen, {
+			Position = UDim2.new(0.5, -320, 0, top),
+			Size = UDim2.fromOffset(440, 28),
+			TextSize = 22,
+			Text = item.title,
+			TextColor3 = COLOR_TEXT,
+		})
+		title.Parent = shopScreen
+		local desc = textLabel(shopScreen, {
+			Position = UDim2.new(0.5, -320, 0, top + 28),
+			Size = UDim2.fromOffset(440, 24),
+			TextSize = 16,
+			Text = item.desc,
+			TextTransparency = 0.35,
+		})
+		desc.Parent = shopScreen
+		local price = textLabel(shopScreen, {
+			Position = UDim2.new(0.5, 110, 0, top + 4),
+			Size = UDim2.fromOffset(140, 24),
+			TextSize = 18,
+			Text = item.price,
+			TextColor3 = COLOR_ACCENT,
+		})
+		price.Parent = shopScreen
+		local buy = new("TextButton", {
+			BackgroundColor3 = COLOR_ACCENT,
+			BorderSizePixel = 0,
+			Text = "КУПИТЬ",
+			TextSize = 18,
+			Font = Enum.Font.GothamBold,
+			TextColor3 = Color3.fromRGB(24, 26, 30),
+			Position = UDim2.new(0.5, 110, 0, top + 30),
+			Size = UDim2.fromOffset(140, 36),
+			ZIndex = 31,
+		})
+		buy.Parent = shopScreen
+		roundCorners(buy, 12)
+		shopRows[item.key] = { button = buy, status = price, price = item.price }
+		HUD.shopButtons = HUD.shopButtons or {}
+		HUD.shopButtons[item.key] = buy
+	end
+	local closeButton = new("TextButton", {
+		BackgroundColor3 = Color3.fromRGB(30, 38, 52),
+		BorderSizePixel = 0,
+		Text = "НАЗАД",
+		TextSize = 20,
+		Font = Enum.Font.GothamBold,
+		TextColor3 = COLOR_TEXT,
+		Position = UDim2.new(0.5, -90, 0.78, 0),
+		Size = UDim2.fromOffset(180, 50),
+		ZIndex = 31,
+	})
+	closeButton.Parent = shopScreen
+	roundCorners(closeButton, 14)
+	HUD.shopCloseButton = closeButton
+
 	touchBase = new("Frame", {
 		Name = "TouchStick",
 		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
@@ -746,13 +914,81 @@ function HUD.setDanger(level: number)
 	vignette.BackgroundTransparency = 1 - math.clamp(level, 0, 1) * 0.55
 end
 
+--- Обратный отсчёт до старта забега (nil - спрятать).
+function HUD.setCountdown(text: string?)
+	if countdownLabel then
+		countdownLabel.Text = text or ""
+		countdownLabel.Visible = text ~= nil
+	end
+end
+
+--- Живой рейтинг гонки.
+function HUD.setStandings(entries: any, myUserId: number)
+	if not standingsPanel then
+		return
+	end
+	if type(entries) ~= "table" or #entries == 0 then
+		standingsPanel.Visible = false
+		return
+	end
+	standingsPanel.Visible = true
+	for i, row in standingsRows do
+		local entry = entries[i]
+		if type(entry) == "table" then
+			local place = if type(entry.place) == "number" then entry.place else i
+			local score = if type(entry.score) == "number" then entry.score else 0
+			local mine = entry.userId == myUserId
+			row.Text = string.format("%d. %s - %d%s", place, tostring(entry.name), score, if mine then "  <-" else "")
+			row.TextColor3 = if mine then COLOR_ACCENT else COLOR_TEXT
+			row.Visible = true
+		else
+			row.Text = ""
+			row.Visible = false
+		end
+	end
+	if standingsLabel then
+		standingsLabel.Text = string.format("ЗАБЕГ - %d ИГРОК(ОВ)", #entries)
+	end
+end
+
+--- Панель магазина.
+function HUD.showShop(show: boolean)
+	if shopScreen then
+		shopScreen.Visible = show
+	end
+end
+
+--- Состояние покупок: перк уже куплен или сколько зарядов осталось.
+function HUD.setShopState(perms: { [string]: any })
+	for key, row in shopRows do
+		local value = perms and perms[key]
+		if row.button then
+			if key == "boostPack" then
+				local charges = if type(value) == "number" then math.floor(value) else 0
+				row.button.Text = "КУПИТЬ"
+				row.button.BackgroundColor3 = COLOR_ACCENT
+				if row.status then
+					row.status.Text = string.format("%s (%d)", row.price, charges)
+				end
+			else
+				local owned = value == true
+				row.button.Text = if owned then "ЕСТЬ" else "КУПИТЬ"
+				row.button.BackgroundColor3 = if owned then COLOR_GOOD else COLOR_ACCENT
+				if row.status then
+					row.status.Text = if owned then "куплено" else row.price
+				end
+			end
+		end
+	end
+end
+
 function HUD.showStart(show: boolean)
 	if startScreen then
 		startScreen.Visible = show
 	end
 end
 
-function HUD.showEnd(show: boolean, score: number, best: number, stats: string?)
+function HUD.showEnd(show: boolean, score: number, best: number, stats: string?, place: number?, total: number?)
 	if not endScreen then
 		return
 	end
@@ -769,6 +1005,15 @@ function HUD.showEnd(show: boolean, score: number, best: number, stats: string?)
 		end
 		if endStats then
 			endStats.Text = stats or ""
+		end
+		if endPlace then
+			if place then
+				local totalText = if total and total > 1 then string.format(" из %d", total) else ""
+				endPlace.Text = string.format("МЕСТО %d%s", place, totalText)
+				endPlace.Visible = true
+			else
+				endPlace.Visible = false
+			end
 		end
 	end
 end

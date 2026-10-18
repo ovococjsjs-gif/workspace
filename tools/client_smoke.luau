@@ -179,6 +179,15 @@ step("Views: вожак, птицы, кольца, камни", function()
 	check(true, "Views.reset отработал")
 end)
 
+--------------------------------------------------------------------------- сервер (до клиента)
+
+step("Server: загрузка серверного скрипта", function()
+	local ok, err = pcall(function()
+		require("./MainServer")
+	end)
+	check(ok, "серверный модуль загрузился без ошибок: " .. tostring(err))
+end)
+
 --------------------------------------------------------------------------- Main
 
 step("Main: запуск клиента и кадры игрового цикла", function()
@@ -212,10 +221,19 @@ step("Main: запуск клиента и кадры игрового цикл�
 		for _, fn in ipairs(button.MouseButton1Click.__signals) do
 			fn()
 		end
-		for _, fn in ipairs(heartbeat.__signals) do
-			fn(1 / 60)
+		-- Сервер отвечает сидом и временем старта; двигаем виртуальные часы,
+		-- чтобы «обратный отсчёт» дошёл до нуля.
+		Mock.advance(5)
+		for _ = 1, 5 do
+			for _, fn in ipairs(heartbeat.__signals) do
+				fn(1 / 60)
+			end
 		end
-		check(true, "забег запущен по кнопке")
+		check(Main.getState().mode == "playing", "забег запущен по кнопке (mode=" .. tostring(Main.getState().mode) .. ")")
+		check(
+			type(Main.getState().roundSeed) == "number",
+			"клиент получил сид общего забега: " .. tostring(Main.getState().roundSeed)
+		)
 	end
 
 	-- Прогоняем забег дольше: первое кольцо проходится примерно на 4.4-й секунде.
@@ -329,6 +347,12 @@ step("Main: запуск клиента и кадры игрового цикл�
 		for _, fn in ipairs(again.MouseButton1Click.__signals) do
 			fn()
 		end
+		Mock.advance(5)
+		for _ = 1, 5 do
+			for _, fn in ipairs(heartbeat.__signals) do
+				fn(1 / 60)
+			end
+		end
 		local modeAfter = Main.getState().mode
 		check(modeAfter == "playing", "рестарт начал новый забег (mode=" .. tostring(modeAfter) .. ")")
 	end
@@ -348,14 +372,122 @@ step("Main: запуск клиента и кадры игрового цикл�
 	check(body.Transparency == 1, "стандартный персонаж спрятан (Transparency=" .. tostring(body.Transparency) .. ")")
 end)
 
---------------------------------------------------------------------------- сервер
+--------------------------------------------------------------------------- гонка и магазин
 
-step("Server: загрузка серверного скрипта", function()
-	local ok, err = pcall(function()
-		require("./MainServer")
-	end)
-	check(ok, "серверный модуль загрузился без ошибок: " .. tostring(err))
+step("Гонка: общий раунд, живой рейтинг и магазин", function()
+	local Main = require("./Main")
+	local heartbeat = services.RunService.Heartbeat
+	local remotes = services.ReplicatedStorage:FindFirstChild("FlockRemotes")
+	local progress = remotes and remotes:FindFirstChild("Progress")
+	local buyPass = remotes and remotes:FindFirstChild("BuyPass")
+	local permsRemote = remotes and remotes:FindFirstChild("PermsUpdate")
+	check(progress ~= nil and buyPass ~= nil, "ремоты гонки и магазина созданы сервером")
+
+	local player = services.Players.LocalPlayer
+
+	-- Клиент сообщает прогресс, сервер принимает правдоподобные данные.
+	if progress then
+		for _, fn in ipairs(progress.OnServerEvent.__signals) do
+			fn(player, 5000, 1200, 15, false, 60)
+		end
+	end
+	-- Сервер рассылает рейтинг раз в секунду: прогоняем кадры.
+	for _ = 1, 80 do
+		for _, fn in ipairs(heartbeat.__signals) do
+			fn(1 / 60)
+		end
+	end
+	local standings = Main.getState().standings
+	check(#standings >= 1, "клиент получил рейтинг забега: " .. tostring(#standings) .. " игрок(ов)")
+
+	-- Финиш: сервер должен присвоить место.
+	if progress then
+		for _, fn in ipairs(progress.OnServerEvent.__signals) do
+			fn(player, 5000, 1200, 3, true, 61)
+		end
+	end
+	for _ = 1, 80 do
+		for _, fn in ipairs(heartbeat.__signals) do
+			fn(1 / 60)
+		end
+	end
+	check(Main.getState().place == 1, "после финиша сервер присвоил место: " .. tostring(Main.getState().place))
+
+	-- Магазин: кнопка открывает панель, кнопка покупки уходит на сервер.
+	local screen = services.Players.LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("FlockGui")
+	local shopButton, buyButton, productButton
+	if screen then
+		for _, child in ipairs(screen:GetDescendants()) do
+			if child:IsA("TextButton") then
+				if child.Text == "МАГАЗИН" then
+					shopButton = child
+				elseif child.Text == "КУПИТЬ" then
+					-- первая кнопка — game pass, последняя — developer product
+					buyButton = buyButton or child
+					productButton = child
+				end
+			end
+		end
+	end
+	check(shopButton ~= nil, "кнопка магазина найдена")
+	if shopButton then
+		for _, fn in ipairs(shopButton.MouseButton1Click.__signals) do
+			fn()
+		end
+	end
+	local shopVisible = false
+	if screen then
+		for _, child in ipairs(screen:GetDescendants()) do
+			if child:IsA("Frame") and child.Name == "ShopPanel" and child.Visible then
+				shopVisible = true
+			end
+		end
+	end
+	check(shopVisible, "панель магазина открылась")
+	check(buyButton ~= nil, "кнопка покупки найдена")
+	-- Настраиваем ID до покупки: сервер должен открыть окно покупки.
+	require("./ShopConfig").passes.goldenBoost = 4242
+	if buyButton then
+		for _, fn in ipairs(buyButton.MouseButton1Click.__signals) do
+			fn()
+		end
+	end
+	local prompted = rawget(services.MarketplaceService, "__promptedPass")
+	check(prompted ~= nil, "сервер вызвал PromptGamePassPurchase для покупки")
+
+	-- Developer product (повторяемая покупка) — тоже должен открыть окно покупки.
+	require("./ShopConfig").products.boostPack = 4243
+	if productButton then
+		for _, fn in ipairs(productButton.MouseButton1Click.__signals) do
+			fn()
+		end
+	end
+	local promptedProduct = rawget(services.MarketplaceService, "__promptedProduct")
+	check(promptedProduct ~= nil, "сервер вызвал PromptProductPurchase для зарядов")
+
+	-- Владение game pass'ом: сервер должен прислать перк клиенту.
+	-- Настраиваем ID покупки (в репозитории он = 0, плейсхолдер).
+	local ShopConfig = require("./ShopConfig")
+	ShopConfig.passes.goldenBoost = 4242
+	local gameplay = services.GameplayService
+	local owned = rawget(gameplay, "__ownedPasses")
+	owned[player.UserId] = { [4242] = true }
+	for _, fn in ipairs(services.Players.PlayerAdded.__signals) do
+		fn(player)
+	end
+	for _ = 1, 3 do
+		for _, fn in ipairs(heartbeat.__signals) do
+			fn(1 / 60)
+		end
+	end
+	check(permsRemote ~= nil, "ремоут перков создан")
+	check(
+		Main.getState().perms.goldenBoost == true,
+		"клиент получил перк после проверки владения pass'ом"
+	)
 end)
+
+--------------------------------------------------------------------------- сервер
 
 step("Server: приём и проверка рекорда", function()
 	local remotes = services.ReplicatedStorage:FindFirstChild("FlockRemotes")

@@ -17,6 +17,18 @@
 
 local Mock = {}
 
+--- Ссылка на «локального» игрока мока (нужна для FireServer).
+local localPlayerRef = nil
+
+--- Виртуальные часы сервера (секунды). Двигаются только вызовом Mock.advance.
+Mock.clock = 0.0
+
+--- Сдвигает виртуальные часы сервера (для проверок обратного отсчёта и раундов).
+function Mock.advance(seconds: number)
+	Mock.clock += seconds
+	return Mock.clock
+end
+
 --------------------------------------------------------------------------- V3Type
 
 local V3Type = {}
@@ -91,8 +103,10 @@ function CFType.new(x, y, z)
 	if type(x) == "table" then
 		return setmetatable({ p = x, r = V3Type.zero }, CFType)
 	end
+	local pos = V3Type.new(x or 0, y or 0, z or 0)
 	return setmetatable({
-		p = V3Type.new(x or 0, y or 0, z or 0),
+		p = pos,
+		Position = pos,
 		r = V3Type.zero,
 		RightVector = V3Type.new(1, 0, 0),
 		UpVector = V3Type.new(0, 1, 0),
@@ -103,6 +117,7 @@ end
 function CFType.lookAt(from, to)
 	return setmetatable({
 		p = from,
+		Position = from,
 		look = to,
 		r = V3Type.zero,
 		RightVector = V3Type.new(1, 0, 0),
@@ -400,6 +415,13 @@ end
 instanceMethods.FireServer = function(self, ...)
 	local args = { ... }
 	rawset(self, "__fired", args)
+	-- В Roblox сервер получает первым аргументом игрока, отправившего событие.
+	local onServer = rawget(self, "OnServerEvent")
+	if onServer and rawget(onServer, "__signals") then
+		for _, fn in ipairs(rawget(onServer, "__signals")) do
+			fn(localPlayerRef, table.unpack(args))
+		end
+	end
 end
 
 instanceMethods.FireAllClients = function(self, ...)
@@ -416,6 +438,14 @@ end
 instanceMethods.FireClient = function(self, ...)
 	local args = { ... }
 	rawset(self, "__fired", args)
+	-- Событие клиенту: в моке клиент один (LocalPlayer).
+	-- Первый аргумент FireClient — получатель, клиенту он не передаётся.
+	local onClient = rawget(self, "OnClientEvent")
+	if onClient and rawget(onClient, "__signals") then
+		for _, fn in ipairs(rawget(onClient, "__signals")) do
+			fn(table.unpack(args, 2))
+		end
+	end
 end
 
 instanceMethods.Play = function(self)
@@ -450,6 +480,7 @@ local function buildServices(shared)
 	rawset(player, "__special", { PlayerGui = playerGui })
 	rawset(players, "__special", { TestPlayer = player })
 	players.LocalPlayer = player
+	localPlayerRef = player
 	players.PlayerAdded = signal("PlayerAdded")
 	players.PlayerRemoving = signal("PlayerRemoving")
 	players.GetPlayerByUserId = function(_self, userId)
@@ -475,13 +506,15 @@ local function buildServices(shared)
 	rawset(replicatedStorage, "__special", { FlockShared = shared, FlockRemotes = remotes })
 
 	local workspaceService = makeInstance("Workspace", { Name = "Workspace" })
+	-- Серверное время в моке: двигается только через Mock.advance (детерминированно).
 	workspaceService.GetServerTimeNow = function()
-		return 1700000000 + os.clock()
+		return 1700000000 + Mock.clock
 	end
 	workspaceService.CurrentCamera = makeInstance("Camera", {
 		Name = "Camera",
 		ViewportSize = V2Type.new(1920, 1080),
 		FieldOfView = 78,
+		CFrame = CFType.new(0, 0, 0),
 	})
 
 	local lighting = makeInstance("Lighting", { Name = "Lighting" })

@@ -18,6 +18,8 @@ local Config = require(Shared.Config)
 local Course = require(Shared.Course)
 local Game = require(Shared.Game)
 local Score = require(Shared.Score)
+local Race = require(Shared.Race)
+local Perms = require(Shared.Perms)
 
 local Input = require(script.Parent.Input)
 local World = require(script.Parent.World)
@@ -34,6 +36,28 @@ type ClientState = {
 	best: number,
 	--- Рекорд уже побит в текущем забеге (для одного раза праздновать).
 	beatBest: boolean,
+	--- Сид общего забега (задаёт курс; одинаковый у всех игроков).
+	roundSeed: number?,
+	--- Серверное время старта забега.
+	roundStartAt: number?,
+	--- Ждём ответа сервера на запрос забега.
+	roundRequested: boolean,
+	--- Крайний срок ожидания ответа сервера (запасной вариант).
+	roundDeadline: number,
+	--- Живой рейтинг забега.
+	standings: { Race.Entry },
+	--- Перки игрока (покупки за Robux).
+	perms: Perms.Perms,
+	--- Итоговое место игрока в забеге.
+	place: number?,
+	--- Сколько игроков в забеге.
+	players: number,
+	--- Счётчик отправки прогресса серверу.
+	progressTimer: number,
+	--- Итоговый счёт последнего забега (нужен для финального экрана).
+	finalScore: number,
+	--- Статистика последнего забега.
+	finalStats: string,
 }
 
 local state: ClientState = {
@@ -41,7 +65,24 @@ local state: ClientState = {
 	game = nil,
 	best = 0,
 	beatBest = false,
+	roundSeed = nil,
+	roundStartAt = nil,
+	roundRequested = false,
+	roundDeadline = 0,
+	standings = {},
+	perms = Perms.new(),
+	place = nil,
+	players = 0,
+	progressTimer = 0,
+	finalScore = 0,
+	finalStats = "",
 }
+
+--- Кто мы для сервера: нужен UserId, чтобы подсветить свою строку в рейтинге.
+local MY_USER_ID = player.UserId
+
+--- Перерисовывает финальный экран (используется, когда пришли итоги забега).
+local showEndScreen: () -> ()
 
 local panicWarned = false
 local camera = Workspace.CurrentCamera
@@ -57,14 +98,34 @@ local function setupRemotes()
 		return ReplicatedStorage:WaitForChild("FlockRemotes", 10)
 	end)
 	if not ok or not remotes then
-		return nil, nil, nil
+		return nil
 	end
-	return remotes:FindFirstChild("SubmitScore"),
-		remotes:FindFirstChild("BestScore"),
-		remotes:FindFirstChild("RequestBest")
+	return remotes
 end
 
-local submitRemote, bestRemote, requestRemote = setupRemotes()
+local remotes = setupRemotes()
+
+--- Достаёт ремоут по имени (nil, если сервер ещё не создал).
+local function remote(name: string): RemoteEvent?
+	if not remotes then
+		return nil
+	end
+	local found = remotes:FindFirstChild(name)
+	return if found then (found :: RemoteEvent) else nil
+end
+
+local submitRemote = remote("SubmitScore")
+local bestRemote = remote("BestScore")
+local requestRemote = remote("RequestBest")
+local roundStartRemote = remote("RoundStart")
+local standingsRemote = remote("Standings")
+local roundEndRemote = remote("RoundEnd")
+local progressRemote = remote("Progress")
+local requestRoundRemote = remote("RequestRound")
+local buyPassRemote = remote("BuyPass")
+local buyProductRemote = remote("BuyProduct")
+local permsRemote = remote("PermsUpdate")
+local buyResultRemote = remote("BuyResult")
 
 if bestRemote then
 	bestRemote.OnClientEvent:Connect(function(value: number)
@@ -83,10 +144,120 @@ local function requestBest()
 	end
 end
 
+--------------------------------------------------------------------------- гонка
+
+--- Серверное время (одинаково у всех клиентов сервера).
+local function serverNow(): number
+	local ok, value = pcall(function()
+		return workspace:GetServerTimeNow()
+	end)
+	if ok and typeof(value) == "number" then
+		return value
+	end
+	return os.clock()
+end
+
+--- Запросить общий забег: сервер ответит сидом и временем старта.
+local function requestRound()
+	state.mode = "menu"
+	state.roundRequested = true
+	state.roundDeadline = os.clock() + 3
+	state.roundStartAt = nil
+	HUD.showEnd(false, 0, 0, "")
+	HUD.showStart(false)
+	HUD.setCountdown("ПОДГОТОВКА")
+	if requestRoundRemote then
+		pcall(function()
+			requestRoundRemote:FireServer()
+		end)
+	end
+end
+
+if roundStartRemote then
+	roundStartRemote.OnClientEvent:Connect(function(seed: any, startAt: any)
+		if typeof(seed) ~= "number" then
+			return
+		end
+		state.roundSeed = seed
+		state.roundStartAt = if typeof(startAt) == "number" then startAt else serverNow()
+		state.roundRequested = false
+	end)
+end
+
+--- Приём рейтинга забега.
+local function applyStandings(entries: any)
+	if type(entries) ~= "table" then
+		return
+	end
+	local list: { Race.Entry } = {}
+	for _, entry in entries do
+		if type(entry) == "table" then
+			table.insert(list, entry)
+		end
+	end
+	state.standings = list
+	state.players = #list
+	state.place = Race.placeOf(list, MY_USER_ID)
+	HUD.setStandings(list, MY_USER_ID)
+end
+
+if standingsRemote then
+	standingsRemote.OnClientEvent:Connect(applyStandings)
+end
+
+if roundEndRemote then
+	roundEndRemote.OnClientEvent:Connect(function(entries: any)
+		applyStandings(entries)
+		if state.mode == "over" then
+			showEndScreen()
+		end
+	end)
+end
+
+--------------------------------------------------------------------------- перки (покупки)
+
+if permsRemote then
+	permsRemote.OnClientEvent:Connect(function(data: any)
+		state.perms = Perms.fromTable(data)
+		HUD.setShopState(state.perms)
+		-- Перки применяются к текущему забегу сразу.
+		if state.game then
+			state.game.perms = state.perms
+		end
+	end)
+end
+
+if buyResultRemote then
+	buyResultRemote.OnClientEvent:Connect(function(ok: any, message: any)
+		if ok == true then
+			HUD.toast("ОКНО ПОКУПКИ ОТКРЫТО", HUD.COLOR_ACCENT)
+		elseif typeof(message) == "string" then
+			HUD.toast(string.upper(message), HUD.COLOR_BAD)
+		end
+	end)
+end
+
+--- Купить перк (game pass) или продукт (developer product).
+local function buy(key: string)
+	if key == "boostPack" then
+		if buyProductRemote then
+			pcall(function()
+				buyProductRemote:FireServer(key)
+			end)
+		end
+		return
+	end
+	if buyPassRemote then
+		pcall(function()
+			buyPassRemote:FireServer(key)
+		end)
+	end
+end
+
 --------------------------------------------------------------------------- жизненный цикл
 
 local function resetRun()
-	state.game = Game.new()
+	state.game = Game.new(state.roundSeed, state.perms)
 	local game = state.game
 	HUD.setScore(0)
 	HUD.setCombo(1)
@@ -129,7 +300,9 @@ local function endRun(finalScore: number)
 			stats ..= string.format("  ·  БОНУС ЗА СТАЮ +%d", bonus)
 		end
 	end
-	HUD.showEnd(true, finalScore, math.max(state.best, finalScore), stats)
+	state.finalScore = finalScore
+	state.finalStats = stats
+	showEndScreen()
 	Audio.fail()
 	if submitRemote then
 		pcall(function()
@@ -138,11 +311,26 @@ local function endRun(finalScore: number)
 	end
 end
 
+--- Финальный экран: счёт, рекорд, статистика и место в забеге.
+showEndScreen = function()
+	HUD.showEnd(
+		true,
+		state.finalScore,
+		math.max(state.best, state.finalScore),
+		state.finalStats,
+		state.place,
+		state.players
+	)
+end
+
 local function startRun()
 	state.mode = "playing"
 	Input.enabled = true
 	HUD.showStart(false)
 	HUD.showEnd(false, 0, 0, "")
+	HUD.setCountdown(nil)
+	state.roundStartAt = nil
+	state.place = nil
 	resetRun()
 	Audio.ui()
 end
@@ -310,15 +498,33 @@ local function boot()
 	if HUD.startButton then
 		HUD.startButton.MouseButton1Click:Connect(function()
 			if state.mode == "menu" then
-				startRun()
+				requestRound()
 			end
 		end)
 	end
 	if HUD.againButton then
 		HUD.againButton.MouseButton1Click:Connect(function()
 			if state.mode == "over" then
-				startRun()
+				requestRound()
 			end
+		end)
+	end
+	if HUD.shopButton then
+		HUD.shopButton.MouseButton1Click:Connect(function()
+			HUD.showShop(true)
+		end)
+	end
+	if HUD.shopCloseButton then
+		HUD.shopCloseButton.MouseButton1Click:Connect(function()
+			HUD.showShop(false)
+		end)
+	end
+	-- Кнопки покупок в магазине.
+	for key, button in pairs(HUD.shopButtons or {}) do
+		local itemKey = key
+		local itemButton = button
+		itemButton.MouseButton1Click:Connect(function()
+			buy(itemKey)
 		end)
 	end
 	if camera then
@@ -328,6 +534,31 @@ local function boot()
 	RunService.Heartbeat:Connect(function(dt: number)
 		local step = math.min(dt, 1 / 20)
 		HUD.updateShake(step)
+
+		-- Обратный отсчёт и старт общего забега.
+		if state.mode == "menu" then
+			if state.roundStartAt then
+				local remaining = state.roundStartAt - serverNow()
+				if remaining <= 0 then
+					state.roundStartAt = nil
+					HUD.setCountdown(nil)
+					startRun()
+				else
+					local sec = math.ceil(remaining)
+					if sec <= 3 then
+						HUD.setCountdown(tostring(sec))
+					else
+						HUD.setCountdown("ПОДГОТОВКА")
+					end
+				end
+			elseif state.roundRequested and os.clock() > state.roundDeadline then
+				-- Сервер не ответил: не блокируем игру, стартуем локально.
+				state.roundRequested = false
+				state.roundSeed = math.random(1, 100000000)
+				HUD.setCountdown(nil)
+				startRun()
+			end
+		end
 
 		local game = state.game
 		if state.mode == "playing" and game then
@@ -374,6 +605,23 @@ local function boot()
 			local alive = Game.flockAlive(game)
 			HUD.setDanger(1 - (alive / math.max(1, Game.flockTotal(game))))
 			HUD.setRingTimer(game.ringGraceLeft, game.ringGraceTotal)
+
+			-- Прогресс для живого рейтинга (4 раза в секунду).
+			state.progressTimer += step
+			if state.progressTimer >= 0.25 then
+				state.progressTimer = 0
+				if progressRemote then
+					pcall(function()
+						progressRemote:FireServer(
+							game.score.score,
+							game.leaderPos.z,
+							Game.flockAlive(game),
+							game.mode == "over",
+							game.time
+						)
+					end)
+				end
+			end
 		end
 
 		if state.game then

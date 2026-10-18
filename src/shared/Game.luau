@@ -87,10 +87,10 @@ local UP = Vec.new(0, 1, 0)
 
 local Game = {}
 
-function Game.new(seed: number?): Game
+function Game.new(seed: number?, perms: Perms.Perms?): Game
 	local runSeed = seed or 20261018
 	local game: Game = {
-		perms = Perms.new(),
+		perms = perms or Perms.new(),
 		seed = runSeed,
 		mode = "playing",
 		time = 0,

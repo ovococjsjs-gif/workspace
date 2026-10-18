@@ -22,6 +22,7 @@ local Shared = ReplicatedStorage:WaitForChild("FlockShared", 10)
 
 local Score = require(Shared.Score)
 local Race = require(Shared.Race)
+local ShopConfig = require(Shared.ShopConfig)
 
 local STORE_NAME = "flock_best_v1"
 
@@ -52,6 +53,7 @@ local requestRoundRemote = makeRemote("RequestRound")
 local buyPassRemote = makeRemote("BuyPass")
 local buyProductRemote = makeRemote("BuyProduct")
 local permsRemote = makeRemote("PermsUpdate")
+local buyResultRemote = makeRemote("BuyResult")
 
 local bestStore = DataStoreService:GetDataStore(STORE_NAME)
 local bestScores: { [Player]: number } = {}
@@ -263,17 +265,9 @@ end)
 
 --------------------------------------------------------------------------- монетизация (Robux)
 
--- Идентификаторы game pass'ов и developer product'ов.
--- ЭТО ПЛЕЙСХОЛДЕРЫ: реальные ID создаются в Roblox Creator Dashboard
--- (Store → Game Passes / Developer Products) и вставляются сюда.
-local PASS_IDS = {
-	goldenBoost = 0, -- «Золотой рывок»: перезарядка рывка вдвое короче
-	windproof = 0, -- «Ветрокром»: ветер не сносит вожака и стаю
-	fastStart = 0, -- «Форсаж»: старт сразу с двойным комбо
-}
-local PRODUCT_IDS = {
-	extraBoost = 0, -- «Рывок за 25 Robux»: мгновенный рывок
-}
+-- Идентификаторы game pass'ов и developer product'ов живут в
+-- src/shared/ShopConfig.luau (сейчас там нули — плейсхолдеры).
+-- Реальные ID создаются в Roblox Creator Dashboard и вписываются туда.
 
 --- Перки игрока (покупки).
 local perms: { [Player]: { [string]: boolean } } = {}
@@ -299,7 +293,7 @@ end
 
 --- Проверка и обновление прав на game pass'ы (MarketplaceService).
 local function refreshPasses(player: Player)
-	for key, id in pairs(PASS_IDS) do
+	for key, id in pairs(ShopConfig.passes) do
 		if id ~= 0 then
 			local ok, owns = pcall(function()
 				return GameplayService:PlayerHasPassAsync(player.UserId, id)
@@ -320,35 +314,47 @@ Players.PlayerRemoving:Connect(function(player: Player)
 	perms[player] = nil
 end)
 
+--- Ответ клиенту о покупке (true — окно покупки открыто).
+local function buyResult(player: Player, ok: boolean, message: string?)
+	pcall(function()
+		buyResultRemote:FireClient(player, ok, message)
+	end)
+end
+
 buyPassRemote.OnServerEvent:Connect(function(player: Player, key: any)
 	if typeof(key) ~= "string" then
 		return
 	end
-	local id = PASS_IDS[key]
+	local id = ShopConfig.passes[key]
 	if not id or id == 0 then
+		-- ID не настроены: честно сообщаем, а не делаем вид, что покупка идёт.
+		buyResult(player, false, "Магазин ещё не настроен (ID покупок = 0)")
 		return
 	end
 	pcall(function()
 		MarketplaceService:PromptGamePassPurchase(player, id)
 	end)
+	buyResult(player, true)
 end)
 
 buyProductRemote.OnServerEvent:Connect(function(player: Player, key: any)
 	if typeof(key) ~= "string" then
 		return
 	end
-	local id = PRODUCT_IDS[key]
+	local id = ShopConfig.products[key]
 	if not id or id == 0 then
+		buyResult(player, false, "Магазин ещё не настроен (ID покупок = 0)")
 		return
 	end
 	pcall(function()
 		MarketplaceService:PromptProductPurchase(player, id)
 	end)
+	buyResult(player, true)
 end)
 
 --- Соответствие ID продуктов и ключей перков.
 local PRODUCT_KEYS_BY_ID: { [number]: string } = {}
-for key, id in pairs(PRODUCT_IDS) do
+for key, id in pairs(ShopConfig.products) do
 	if id ~= 0 then
 		PRODUCT_KEYS_BY_ID[id] = key
 	end
