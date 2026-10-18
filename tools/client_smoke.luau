@@ -311,6 +311,30 @@ step("Server: загрузка серверного скрипта", function()
 	check(ok, "серверный модуль загрузился без ошибок: " .. tostring(err))
 end)
 
+step("Server: приём и проверка рекорда", function()
+	local remotes = services.ReplicatedStorage:FindFirstChild("FlockRemotes")
+	local submit = remotes and remotes:FindFirstChild("SubmitScore")
+	local best = remotes and remotes:FindFirstChild("BestScore")
+	check(submit ~= nil and best ~= nil, "ремоты рекорда созданы сервером")
+	if not (submit and best) then
+		return
+	end
+
+	-- Правдоподобный результат должен приняться и вернуться игроку.
+	for _, fn in ipairs(submit.OnServerEvent.__signals) do
+		fn(services.Players.LocalPlayer, 1000, 60)
+	end
+	local fired = rawget(best, "__fired")
+	check(fired ~= nil and fired[2] == 1000, "сервер принял правдоподобный счёт и отдал рекорд")
+
+	-- Заведомо невозможный результат (миллион очков за секунду) — отбрасывается.
+	for _, fn in ipairs(submit.OnServerEvent.__signals) do
+		fn(services.Players.LocalPlayer, 1000000, 1)
+	end
+	local fired2 = rawget(best, "__fired")
+	check(fired2 == nil or fired2[2] == 1000, "невозможный счёт отброшен сервером")
+end)
+
 print("")
 print(string.format("SMOKE: проверок %d, провалов %d", checks, failures))
 if failures > 0 then
