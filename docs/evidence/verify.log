@@ -409,12 +409,12 @@ luau-analyze (клиент/сервер): ошибок нет
 ############################################################
 # Сборка через Rojo
 ############################################################
-# tools/rojo_build.sh — 2026-10-18 11:48:09 UTC
+# tools/rojo_build.sh — 2026-10-18 11:49:19 UTC
 # rojo: /tmp/rojopkg/node_modules/.bin/rojo (Rojo 7.7.0-rc.1)
 # выходной файл: /tmp/flock.rbxlx
 Building project 'flock'
 Built project to flock.rbxlx
-Сборка успешна: /tmp/flock.rbxlx (126255 байт)
+Сборка успешна: /tmp/flock.rbxlx (126359 байт)
   ok   FlockShared на месте
   ok   FlockServer на месте
   ok   FlockClient на месте
