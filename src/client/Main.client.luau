@@ -394,4 +394,9 @@ end
 
 boot()
 
-return {}
+-- Небольшой хук для headless-проверок (в Roblox значение LocalScript игнорируется).
+return {
+	getState = function(): ClientState
+		return state
+	end,
+}

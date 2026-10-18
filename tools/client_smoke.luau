@@ -227,6 +227,14 @@ step("Main: запуск клиента и кадры игрового цикл�
 	end
 	check(true, "клик мышью (рывок) обработан без ошибок")
 
+	-- ЛКМ должен реально запустить рывок в игровой симуляции.
+	local clientState = Main.getState()
+	local boostActive = false
+	if clientState and clientState.game then
+		boostActive = clientState.game.boostTime > 0 or clientState.game.boostCooldown > 0
+	end
+	check(boostActive, "ЛКМ запустил рывок в симуляции")
+
 	-- Потеря фокуса.
 	for _, fn in ipairs(uis.WindowFocusReleased.__signals) do
 		fn()
