@@ -24,6 +24,9 @@ export type Prop = {
 	scale: number,
 	tint: Color3,
 	phase: number,
+	--- Шаг расстановки этого вида пропсов (хранится в самом пропсе:
+	--- индекс в общем списке не совпадает с индексом вида).
+	spacing: number,
 }
 
 local props: { Prop } = {}
@@ -89,6 +92,7 @@ function World.build()
 				scale = 0.8 + ((i * 13) % 7) / 10,
 				tint = kind.color,
 				phase = (i * 0.7) % (math.pi * 2),
+				spacing = kind.spacing,
 			})
 		end
 	end
@@ -111,15 +115,14 @@ function World.update(leaderPos: Vec.Vec3)
 
 	local baseZ = leaderPos.z
 	for index, prop in props do
-		local kind: { [string]: any } = KINDS[index]
-		local spacing = kind.spacing
+		local spacing = prop.spacing
 		local z = baseZ + 70 + ((index * spacing) % (spacing * 9))
 		local cp = Course.pointAt(z)
 		local sway = math.sin(prop.phase + z * 0.01) * 3
 		local pos = Vec.add(cp.pos, Vec.scale(cp.right, prop.offset + sway))
 		pos.y = prop.height
 		local part = prop.part
-		local size = kind.size * prop.scale
+		local size = prop.part.Size * prop.scale
 		part.Size = size
 		part.CFrame = CFrame.new(pos.x, pos.y, pos.z) * CFrame.Angles(0, prop.phase, 0)
 	end

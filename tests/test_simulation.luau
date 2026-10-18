@@ -180,12 +180,13 @@ T.test("магнит: потерянная птица сама тянется к
 	bird.pos = Vec.new(game.leaderPos.x + 30, game.leaderPos.y, game.leaderPos.z)
 	bird.vel = Vec.zero()
 
-	local ctx = {
+	local ctx: Flock.FlockContext = {
 		leaderPos = game.leaderPos,
 		courseForward = Vec.new(0, 0, 1),
 		courseRight = Vec.new(1, 0, 0),
 		wind = Vec.zero(),
 		time = game.time,
+		leaderAgitation = 0,
 	}
 	local before = Vec.dist(bird.pos, game.leaderPos)
 	for _ = 1, 180 do
