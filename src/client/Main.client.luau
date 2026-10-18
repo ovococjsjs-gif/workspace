@@ -102,7 +102,19 @@ local function endRun(finalScore: number)
 	end
 	state.mode = "over"
 	Input.enabled = false
-	HUD.showEnd(true, finalScore, math.max(state.best, finalScore))
+	-- Итоговая статистика забега: кольца, чистые кольца, макс. комбо, время.
+	local stats = ""
+	local game = state.game
+	if game then
+		local sc = game.score
+		local minutes = math.floor(game.time / 60)
+		local seconds = math.floor(game.time % 60)
+		stats = string.format(
+			"КОЛЕЦ %d  ·  ЧИСТЫХ %d  ·  МАКС. КОМБО ×%d  ·  ВРЕМЯ %d:%02d",
+			sc.rings, sc.perfects, sc.bestCombo, minutes, seconds
+		)
+	end
+	HUD.showEnd(true, finalScore, math.max(state.best, finalScore), stats)
 	Audio.fail()
 	if submitRemote then
 		pcall(function()
@@ -115,7 +127,7 @@ local function startRun()
 	state.mode = "playing"
 	Input.enabled = true
 	HUD.showStart(false)
-	HUD.showEnd(false, 0, 0)
+	HUD.showEnd(false, 0, 0, "")
 	resetRun()
 	Audio.ui()
 end

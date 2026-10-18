@@ -42,6 +42,7 @@ local endScreen: Frame? = nil
 local endTitle: TextLabel? = nil
 local endScore: TextLabel? = nil
 local endBest: TextLabel? = nil
+local endStats: TextLabel? = nil
 local reticle: Frame? = nil
 local shakeOffset = Vector3.zero
 
@@ -314,10 +315,14 @@ function HUD.build()
 	local startStroke = new("UIStroke", { Thickness = 6, Color = Color3.fromRGB(20, 24, 30), Transparency = 0.2 })
 	startStroke.Parent = startTitle
 	local startSub = textLabel(startScreen, {
-		Position = UDim2.new(0.5, -400, 0.5, -60),
-		Size = UDim2.fromOffset(800, 120),
-		TextSize = 22,
-		Text = "Ты — вожак. Собери стаю и проведи её через кольца.\nЕсли в кольцо пролезли не все птицы — комбо сбрасывается.\n\nWASD — курс   Space / Shift — высота",
+		Position = UDim2.new(0.5, -430, 0.5, -95),
+		Size = UDim2.fromOffset(860, 190),
+		TextSize = 21,
+		Text = "Ты — вожак стаи из 18 птиц. Проведи их через кольца-ворота.\n"
+			.. "Кольцо засчитывается, только если прошла ВСЯ стая.\n"
+			.. "Веди спокойно: резкое управление пугает стаю — и она разваливается.\n"
+			.. "Потерянных птиц догони и верни в строй (маячок + магнит).\n\n"
+			.. "WASD — курс    Space / Shift — высота    ЛКМ — рывок",
 		TextTransparency = 0.1,
 	})
 	local startButton = new("TextButton", {
@@ -327,7 +332,7 @@ function HUD.build()
 		TextSize = 30,
 		Font = Enum.Font.GothamBold,
 		TextColor3 = Color3.fromRGB(24, 26, 30),
-		Position = UDim2.new(0.5, -130, 0.5, 60),
+		Position = UDim2.new(0.5, -130, 0.5, 110),
 		Size = UDim2.fromOffset(260, 68),
 		AutoButtonColor = true,
 		ZIndex = 11,
@@ -366,6 +371,14 @@ function HUD.build()
 		TextSize = 22,
 		Text = "РЕКОРД 0",
 		TextColor3 = COLOR_ACCENT,
+	})
+	endStats = textLabel(endScreen, {
+		Position = UDim2.new(0.5, -400, 0.5, 30),
+		Size = UDim2.fromOffset(800, 32),
+		TextSize = 18,
+		Text = "",
+		TextColor3 = COLOR_TEXT,
+		TextTransparency = 0.25,
 	})
 	local againButton = new("TextButton", {
 		BackgroundColor3 = COLOR_ACCENT,
@@ -576,7 +589,7 @@ function HUD.showStart(show: boolean)
 	end
 end
 
-function HUD.showEnd(show: boolean, score: number, best: number)
+function HUD.showEnd(show: boolean, score: number, best: number, stats: string?)
 	if not endScreen then
 		return
 	end
@@ -590,6 +603,9 @@ function HUD.showEnd(show: boolean, score: number, best: number)
 		end
 		if endBest then
 			endBest.Text = "РЕКОРД " .. tostring(best)
+		end
+		if endStats then
+			endStats.Text = stats or ""
 		end
 	end
 end
