@@ -265,6 +265,28 @@ step("Main: запуск клиента и кадры игрового цикл�
 	end
 	check(true, "потеря фокуса обработана без ошибок")
 
+	-- Рестарт из финального экрана: кнопка «ЕЩЁ РАЗ» должна начать новый забег.
+	local st = Main.getState()
+	if st then
+		st.mode = "over"
+	end
+	local again
+	if screen then
+		for _, child in ipairs(screen:GetDescendants()) do
+			if child:IsA("TextButton") and child.Text == "ЕЩЁ РАЗ" then
+				again = child
+			end
+		end
+	end
+	check(again ~= nil, "кнопка рестарта найдена")
+	if again then
+		for _, fn in ipairs(again.MouseButton1Click.__signals) do
+			fn()
+		end
+		local modeAfter = Main.getState().mode
+		check(modeAfter == "playing", "рестарт начал новый забег (mode=" .. tostring(modeAfter) .. ")")
+	end
+
 	-- Появление персонажа: клиент должен спрятать стандартное тело.
 	local character = Mock.env.Instance.new("Model")
 	local body = Mock.env.Instance.new("Part")
