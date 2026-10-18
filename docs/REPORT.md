@@ -63,6 +63,7 @@ Roblox-API**. Roblox-слой только рисует и читает ввод
 | `bash tools/check_syntax.sh` | `luau-compile` проходит по всем 24 файлам `src/` и `tests/` | [`evidence/check_syntax.log`](evidence/check_syntax.log) |
 | `bash tools/smoke.sh` | клиент и сервер **выполняются** headless против мока Roblox API: 18 проверок, 0 провалов | [`evidence/smoke.log`](evidence/smoke.log) |
 | `bash tools/verify.sh` | все проверки разом + сводка «ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ» | [`evidence/verify.log`](evidence/verify.log) |
+| `bash tools/rojo_build.sh` | **сборка через Rojo проходит**: place-файл собран (121 КБ), все ожидаемые контейнеры (`FlockShared`, `FlockServer`, `FlockClient`) на месте | [`evidence/rojo_build.log`](evidence/rojo_build.log) |
 | `bash tools/probe.sh` | headless-забег: кольца засчитываются, счёт и комбо растут | [`evidence/probe.log`](evidence/probe.log) |
 | `bash tools/scenario.sh calm` | «спокойный пилот»: 36 колец, 35 чистых, стая цела (18/18), счёт 28440 | [`evidence/scenario_calm.log`](evidence/scenario_calm.log) |
 | `bash tools/scenario.sh booster` | «пилот с рывками»: 37 колец, 36 чистых, стая цела, счёт 29340 | [`evidence/scenario_booster.log`](evidence/scenario_booster.log) |

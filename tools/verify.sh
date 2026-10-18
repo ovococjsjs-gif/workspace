@@ -7,6 +7,7 @@
 #   3. smoke-тест клиента/сервера        (часть run_tests.sh)
 #   4. headless-прогон забега            (tools/probe.sh)
 #   5. сценарные прогоны баланса        (tools/scenario.sh)
+#   6. сборка place-файла через Rojo    (tools/rojo_build.sh, если rojo есть)
 #
 # Код возврата: 0 — всё зелёное, 1 — есть провалы.
 set -uo pipefail
@@ -39,6 +40,7 @@ run_step "Сценарий: спокойный пилот" bash "$ROOT/tools/sce
 run_step "Сценарий: пилот с рывками" bash "$ROOT/tools/scenario.sh" booster 90
 run_step "Сценарий: средний пилот" bash "$ROOT/tools/scenario.sh" medium 90
 run_step "Сценарий: паникующий пилот" bash "$ROOT/tools/scenario.sh" reckless 90
+run_step "Сборка через Rojo" bash "$ROOT/tools/rojo_build.sh"
 
 echo ""
 echo "############################################################"
