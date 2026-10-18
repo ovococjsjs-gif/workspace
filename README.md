@@ -37,7 +37,7 @@ bash tools/rojo_build.sh           # сборка place-файла через Ro
 
 ```
 TESTS PASSED: 73/73
-SMOKE: проверок 57, провалов 0
+SMOKE: проверок 59, провалов 0
 luau-analyze: ошибок нет
 luau-analyze (клиент/сервер): ошибок нет
 ```
@@ -405,7 +405,7 @@ reckless: счёт=1020,  колец=24, чистых=0,  живо 3/18  -> ИГ
 
 **Проверено в репозитории (команды + вывод в логах):**
 
-* `tools/run_tests.sh` → `TESTS PASSED: 73/73`, `SMOKE: проверок 57, провалов 0`,
+* `tools/run_tests.sh` → `TESTS PASSED: 73/73`, `SMOKE: проверок 59, провалов 0`,
   `luau-analyze: ошибок нет` (логика + тесты) и `luau-analyze (клиент/сервер):
   ошибок нет`
 * `tools/check_syntax.sh` → синтаксис без ошибок (32 файла)

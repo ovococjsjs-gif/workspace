@@ -524,6 +524,26 @@ step("Гонка: общий раунд, живой рейтинг и магаз
 			Main.getState().perms.boostCharges == 3,
 			"один PurchaseId выдал ровно 3 заряда (не дублировал): " .. tostring(Main.getState().perms.boostCharges)
 		)
+		-- Потратим заряд, затем повторно доставим старый чек. Реестр PurchaseId
+		-- должен пережить UpdateAsync списания — заряд не появится снова.
+		local useCharge = remotes and remotes:FindFirstChild("UseBoostCharge")
+		if useCharge then
+			for _, fn in ipairs(useCharge.OnServerEvent.__signals) do
+				fn(player)
+			end
+		end
+		local afterSpend = Main.getState().perms.boostCharges
+		local afterSpendDuplicate = receipt(receiptInfo)
+		check(afterSpendDuplicate == Mock.env.Enum.ProductPurchaseDecision.PurchaseGranted, "старый чек после расхода повторно подтверждён")
+		for _ = 1, 3 do
+			for _, fn in ipairs(heartbeat.__signals) do
+				fn(1 / 60)
+			end
+		end
+		check(
+			afterSpend == 2 and Main.getState().perms.boostCharges == 2,
+			"после расхода и повтора старого чека осталось 2 заряда: " .. tostring(Main.getState().perms.boostCharges)
+		)
 	else
 		check(false, "сервер не назначил обработчик ProcessReceipt")
 	end
