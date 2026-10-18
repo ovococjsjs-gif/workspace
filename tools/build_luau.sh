@@ -1,5 +1,5 @@
 #!/bin/bash
-# Сборка Luau CLI + Luau.Analyze из исходников.
+# Сборка Luau CLI (luau), Luau.Analyze (luau-analyze) и Luau.Compile (luau-compile) из исходников.
 # Нужна для: (1) запуска юнит-тестов чистой логики, (2) статического анализа Luau.
 # Сеть: github.com (git clone) + pypi.org (pip install cmake) — единственные разрешённые хосты.
 set -x
@@ -18,6 +18,6 @@ fi
 
 cd "$SRC" || exit 1
 cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DLUAU_BUILD_CLI=ON -DLUAU_BUILD_ANALYZE=ON 2>&1 | tail -5 || exit 1
-cmake --build build --target Luau.Repl.CLI Luau.Analyze.CLI -j "$(nproc)" 2>&1 | tail -25 || exit 1
-ls -la "$SRC"/build/luau "$SRC"/build/luau-analyze || exit 1
+cmake --build build --target Luau.Repl.CLI Luau.Analyze.CLI Luau.Compile.CLI -j "$(nproc)" 2>&1 | tail -25 || exit 1
+ls -la "$SRC"/build/luau "$SRC"/build/luau-analyze "$SRC"/build/luau-compile || exit 1
 echo "BUILD_LUAU_OK"
