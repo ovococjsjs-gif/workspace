@@ -5,12 +5,6 @@
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
--- Общие модули (собранные Rojo в ReplicatedStorage.FlockShared).
-local Shared = ReplicatedStorage:WaitForChild("FlockShared", 10)
-
-local Config = require(Shared.Config)
 
 local HUD = {}
 
@@ -38,6 +32,7 @@ local timerLabel: TextLabel? = nil
 local flash: Frame? = nil
 local vignette: Frame? = nil
 local startScreen: Frame? = nil
+local startSub: TextLabel? = nil
 local endScreen: Frame? = nil
 local endTitle: TextLabel? = nil
 local endScore: TextLabel? = nil
@@ -370,7 +365,7 @@ function HUD.build()
 	})
 	local startStroke = new("UIStroke", { Thickness = 6, Color = Color3.fromRGB(20, 24, 30), Transparency = 0.2 })
 	startStroke.Parent = startTitle
-	local startSub = textLabel(startScreen, {
+	startSub = textLabel(startScreen, {
 		Position = UDim2.new(0.5, -430, 0.5, -95),
 		Size = UDim2.fromOffset(860, 190),
 		TextSize = 21,
