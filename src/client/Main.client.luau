@@ -33,12 +33,15 @@ type ClientState = {
 	mode: string, -- "menu" | "playing" | "over"
 	game: Game.Game?,
 	best: number,
+	--- Рекорд уже побит в текущем забеге (для одного раза праздновать).
+	beatBest: boolean,
 }
 
 local state: ClientState = {
 	mode = "menu", -- "menu" | "playing" | "over"
 	game = nil,
 	best = 0,
+	beatBest = false,
 }
 
 local panicWarned = false
@@ -90,6 +93,7 @@ local function resetRun()
 	HUD.setHint("WASD — курс, Space/Shift — высота")
 	HUD.setDanger(0)
 	HUD.setCalm(1)
+	state.beatBest = false
 	HUD.setTime(0)
 	HUD.setPhaseProgress(0)
 	HUD.setBoost(0, Config.leader.boostDuration + Config.leader.boostCooldown, false)
@@ -319,6 +323,12 @@ local function boot()
 			local panic = game.flock.panic
 			HUD.setCalm(1 - panic)
 			HUD.setTime(game.time)
+			if not state.beatBest and state.best > 0 and game.score.score > state.best then
+				state.beatBest = true
+				HUD.toast("НОВЫЙ РЕКОРД!", HUD.COLOR_ACCENT)
+				HUD.flashScreen(HUD.COLOR_ACCENT, 0.25)
+				Audio.perfect(5)
+			end
 			HUD.setMercy(game.mercyTime > 0, game.mercyTime)
 			local wind = Game.windVector(game)
 			local side = 0
