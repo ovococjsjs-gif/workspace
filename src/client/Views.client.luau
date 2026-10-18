@@ -12,6 +12,7 @@ local Vec = require(Shared.Vec)
 local Config = require(Shared.Config)
 local Flock = require(Shared.Flock)
 local Rings = require(Shared.Rings)
+local Obstacles = require(Shared.Obstacles)
 
 local Views = {}
 
@@ -29,6 +30,8 @@ local birdWings: { Part } = {}
 --- Маячки над потерянными птицами: игрок должен видеть, кого искать.
 local birdBeacons: { Part } = {}
 local ringVisuals: { [number]: RingVisual } = {}
+--- Камни-препятствия: визуализация общих данных Obstacles.
+local obstacleVisuals: { [number]: Part } = {}
 
 local COLOR_LEADER = Color3.fromRGB(255, 176, 64)
 local COLOR_BIRD = Color3.fromRGB(250, 246, 232)
@@ -277,10 +280,17 @@ function Views.updateRings(ringWorld: Rings.RingWorld, dt: number, time: number)
 			visual = ringVisuals[ring.id]
 		end
 
+		-- Окно кольца: пока стая не прошла, кольцо «закрывается» — радиус
+		-- визуально сжимается, и цвет становится тревожным.
+		local window = 1
+		if ring.state == "crossed" then
+			window = math.clamp(1 - (time - ring.openedAt) / math.max(ring.grace, 0.001), 0, 1)
+		end
+
 		-- Цвет кольца по состоянию.
 		local color = COLOR_RING_WAIT
 		if ring.state == "crossed" then
-			color = COLOR_RING_OPEN
+			color = if window < 0.4 then COLOR_RING_DONE else COLOR_RING_OPEN
 		elseif ring.state == "resolved" then
 			color = COLOR_RING_DONE
 		end
@@ -293,10 +303,11 @@ function Views.updateRings(ringWorld: Rings.RingWorld, dt: number, time: number)
 		-- Позиции сегментов: кольцо медленно вращается вокруг своей оси.
 		local count = #visual.segments
 		local spin = time * 0.6 + ring.id
+		local visualRadius = ring.radius * (if ring.state == "crossed" then math.max(window, 0.12) else 1)
 		for i = 1, count do
 			local angle = (i - 1) / count * math.pi * 2 + spin
 			local cosA, sinA = math.cos(angle), math.sin(angle)
-			local pos = Vec.add(ring.pos, Vec.add(Vec.scale(ring.right, cosA * ring.radius), Vec.scale(ring.up, sinA * ring.radius)))
+			local pos = Vec.add(ring.pos, Vec.add(Vec.scale(ring.right, cosA * visualRadius), Vec.scale(ring.up, sinA * visualRadius)))
 			local tangent = Vec.add(Vec.scale(ring.right, -sinA), Vec.scale(ring.up, cosA))
 			local segment = visual.segments[i]
 			segment.Size = Vector3.new(3.0, 3.0, 4.2) * pulse
@@ -304,7 +315,8 @@ function Views.updateRings(ringWorld: Rings.RingWorld, dt: number, time: number)
 		end
 		local base = CFrame.fromMatrix(toVector(ring.pos), toVector(ring.right), toVector(ring.up), toVector(ring.normal))
 		visual.membrane.CFrame = base * CFrame.Angles(0, math.pi / 2, 0)
-		visual.membrane.Size = Vector3.new(0.5, ring.radius * 2, ring.radius * 2)
+		visual.membrane.Size = Vector3.new(0.5, visualRadius * 2, visualRadius * 2)
+		visual.membrane.Transparency = if ring.state == "crossed" then 0.55 + 0.35 * (1 - window) else 0.86
 	end
 
 	for id in ringVisuals do
@@ -314,9 +326,50 @@ function Views.updateRings(ringWorld: Rings.RingWorld, dt: number, time: number)
 	end
 end
 
+--- Рисует камни-препятствия (общие данные из Obstacles).
+function Views.updateObstacles(obstacleWorld: Obstacles.ObstacleWorld, time: number)
+	-- Создаём недостающие визуалы (по id, чтобы они не путались при отсеве).
+	for _, obstacle in obstacleWorld.obstacles do
+		if not obstacleVisuals[obstacle.id] then
+			local part = makePart(
+				"Obstacle" .. obstacle.id,
+				Vector3.new(8, 8, 8),
+				Color3.fromRGB(120, 116, 128),
+				Enum.Material.Slate
+			)
+			part.LightEmission = 0.15
+			obstacleVisuals[obstacle.id] = part
+		end
+	end
+
+	local alive: { [number]: boolean } = {}
+	for _, obstacle in obstacleWorld.obstacles do
+		alive[obstacle.id] = true
+		local part = obstacleVisuals[obstacle.id]
+		if part then
+			part.CFrame = CFrame.new(obstacle.pos.x, obstacle.pos.y, obstacle.pos.z)
+				* CFrame.Angles(time * 0.7, time * 0.45, 0)
+			part.Size = Vector3.new(obstacle.radius * 2, obstacle.radius * 2, obstacle.radius * 2)
+			part.Transparency = 0
+		end
+	end
+
+	-- Убираем визуалы исчезнувших камней.
+	for id, part in obstacleVisuals do
+		if not alive[id] then
+			part:Destroy()
+			obstacleVisuals[id] = nil
+		end
+	end
+end
+
 function Views.reset()
 	for id in ringVisuals do
 		destroyRingVisual(id)
+	end
+	for id, part in obstacleVisuals do
+		part:Destroy()
+		obstacleVisuals[id] = nil
 	end
 end
 

@@ -11,6 +11,8 @@ local Rng = require(script.Parent.Rng)
 export type Vec3 = Vec.Vec3
 
 export type Obstacle = {
+	--- Стабильный идентификатор: по нему клиент держит визуалы.
+	id: number,
 	pos: Vec3,
 	radius: number,
 	strength: number,
@@ -19,6 +21,7 @@ export type Obstacle = {
 export type ObstacleWorld = {
 	obstacles: { Obstacle },
 	nextSpawnZ: number,
+	nextId: number,
 	rng: Rng.Rng,
 }
 
@@ -35,6 +38,7 @@ function Obstacles.new(seed: number?): ObstacleWorld
 	return {
 		obstacles = {},
 		nextSpawnZ = 160,
+		nextId = 1,
 		rng = Rng.new(seed or 777),
 	}
 end
@@ -53,10 +57,12 @@ function Obstacles.ensureSpawned(world: ObstacleWorld, leaderZ: number, chance: 
 			local pos = Vec.add(cp.pos, Vec.scale(cp.right, lateral))
 			pos.y = height
 			table.insert(world.obstacles, {
+				id = world.nextId,
 				pos = pos,
 				radius = Rng.nextRange(world.rng, 4.5, 8.5),
 				strength = Rng.nextRange(world.rng, 60.0, 115.0),
 			})
+			world.nextId += 1
 		end
 		world.nextSpawnZ += gap
 	end

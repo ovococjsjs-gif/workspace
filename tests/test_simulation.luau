@@ -172,6 +172,30 @@ T.test("рывок: ускоряет вожака, но стая начинае�
 	T.ok(boostLag > normalLag, "стая должна отставать во время рывка (" .. tostring(normalLag) .. " -> " .. tostring(boostLag) .. ")")
 end)
 
+T.test("магнит: потерянная птица сама тянется к вожаку, когда он рядом", function()
+	local game = Game.new(21)
+	local flock = game.flock
+	local bird = flock.birds[1]
+	bird.mode = "lost"
+	bird.pos = Vec.new(game.leaderPos.x + 30, game.leaderPos.y, game.leaderPos.z)
+	bird.vel = Vec.zero()
+
+	local ctx = {
+		leaderPos = game.leaderPos,
+		courseForward = Vec.new(0, 0, 1),
+		courseRight = Vec.new(1, 0, 0),
+		wind = Vec.zero(),
+		time = game.time,
+	}
+	local before = Vec.dist(bird.pos, game.leaderPos)
+	for _ = 1, 180 do
+		Flock.step(flock, DT, ctx)
+	end
+	local after = Vec.dist(bird.pos, game.leaderPos)
+	T.ok(after < before, "птица должна приближаться к вожаку (" .. tostring(before) .. " -> " .. tostring(after) .. ")")
+	T.ok(bird.mode == "returning" or bird.mode == "formation", "птица должна начать возвращаться в строй")
+end)
+
 T.test("рывок: перезарядка — второй запрос игнорируется", function()
 	local game = Game.new(12)
 	local starts = 0

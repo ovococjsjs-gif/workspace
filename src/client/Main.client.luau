@@ -90,6 +90,7 @@ local function resetRun()
 	HUD.setDanger(0)
 	HUD.setCalm(1)
 	HUD.setBoost(0, Config.leader.boostDuration + Config.leader.boostCooldown, false)
+	Input.consumeBoost() -- сбросить клик, сделанный в меню
 	panicWarned = false
 	HUD.setRingTimer(nil, nil)
 	Views.reset()
@@ -282,6 +283,7 @@ local function boot()
 			)
 			Views.updateBirds(state.game.flock)
 			Views.updateRings(state.game.rings, step, state.game.time)
+			Views.updateObstacles(state.game.obstacles, state.game.time)
 		end
 		updateCamera(step)
 	end)
