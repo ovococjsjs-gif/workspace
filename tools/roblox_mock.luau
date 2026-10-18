@@ -73,6 +73,7 @@ function CFType.new(x, y, z)
 		r = V3Type.zero,
 		RightVector = V3Type.new(1, 0, 0),
 		UpVector = V3Type.new(0, 1, 0),
+		LookVector = V3Type.new(0, 0, -1),
 	}, CFType)
 end
 
@@ -83,6 +84,7 @@ function CFType.lookAt(from, to)
 		r = V3Type.zero,
 		RightVector = V3Type.new(1, 0, 0),
 		UpVector = V3Type.new(0, 1, 0),
+		LookVector = V3Type.new(0, 0, -1),
 	}, CFType)
 end
 

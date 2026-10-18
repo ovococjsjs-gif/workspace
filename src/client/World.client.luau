@@ -98,6 +98,62 @@ function World.build()
 	end
 end
 
+--- Палитры фаз: небо, туман и свет меняются вместе с фазой —
+--- так прогресс забега читается даже боковым зрением.
+local PHASE_LOOK = {
+	{
+		clock = 14.6,
+		brightness = 2.4,
+		ambient = Color3.fromRGB(112, 124, 145),
+		outdoor = Color3.fromRGB(150, 158, 172),
+		fog = Color3.fromRGB(196, 224, 242),
+		fogStart = 420,
+		fogEnd = 1500,
+	},
+	{
+		clock = 13.2,
+		brightness = 2.0,
+		ambient = Color3.fromRGB(104, 116, 136),
+		outdoor = Color3.fromRGB(140, 150, 168),
+		fog = Color3.fromRGB(176, 202, 224),
+		fogStart = 320,
+		fogEnd = 1200,
+	},
+	{
+		clock = 11.0,
+		brightness = 1.6,
+		ambient = Color3.fromRGB(92, 100, 118),
+		outdoor = Color3.fromRGB(120, 130, 150),
+		fog = Color3.fromRGB(150, 172, 198),
+		fogStart = 240,
+		fogEnd = 950,
+	},
+	{
+		clock = 8.6,
+		brightness = 1.2,
+		ambient = Color3.fromRGB(74, 82, 102),
+		outdoor = Color3.fromRGB(96, 106, 130),
+		fog = Color3.fromRGB(112, 128, 158),
+		fogStart = 150,
+		fogEnd = 680,
+	},
+}
+
+--- Перекрашивает мир под текущую фазу (1..4).
+function World.setPhase(index: number)
+	local look = PHASE_LOOK[math.clamp(index, 1, #PHASE_LOOK)]
+	if not look then
+		return
+	end
+	Lighting.ClockTime = look.clock
+	Lighting.Brightness = look.brightness
+	Lighting.Ambient = look.ambient
+	Lighting.OutdoorAmbient = look.outdoor
+	Lighting.FogColor = look.fog
+	Lighting.FogStart = look.fogStart
+	Lighting.FogEnd = look.fogEnd
+end
+
 --- Пересчитывает позиции пропсов относительно текущей позиции лидера.
 function World.update(leaderPos: Vec.Vec3)
 	if not built then

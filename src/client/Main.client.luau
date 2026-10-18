@@ -149,6 +149,7 @@ end
 local function handleEvent(event: Game.GameEvent)
 	if event.phaseIndex and event.phaseName then
 		HUD.setPhase(event.phaseName, event.phaseIndex)
+		World.setPhase(event.phaseIndex)
 		HUD.setHint(Game.phase(state.game).hint)
 		HUD.toast("ФАЗА " .. tostring(event.phaseIndex) .. ": " .. event.phaseName, HUD.COLOR_ACCENT)
 	end
@@ -213,6 +214,7 @@ local function updateStrayArrow(game: Game.Game)
 	local camPos = camera.CFrame.Position
 	local right = camera.CFrame.RightVector
 	local up = camera.CFrame.UpVector
+	local forward = camera.CFrame.LookVector
 
 	local bestAngle: number? = nil
 	local bestDist = math.huge
@@ -224,7 +226,13 @@ local function updateStrayArrow(game: Game.Game)
 				bestDist = dist
 				local sx = toBird.x * right.x + toBird.y * right.y + toBird.z * right.z
 				local sy = toBird.x * up.x + toBird.y * up.y + toBird.z * up.z
-				bestAngle = math.atan2(-sy, sx)
+				local sz = toBird.x * forward.x + toBird.y * forward.y + toBird.z * forward.z
+				local angle = math.atan2(-sy, sx)
+				-- Птица за спиной: стрелка должна показывать «назад».
+				if sz < 0 then
+					angle = angle + math.pi
+				end
+				bestAngle = angle
 			end
 		end
 	end
@@ -277,6 +285,7 @@ local function boot()
 	end)
 
 	World.build()
+	World.setPhase(1)
 	Views.build(Config.flockSize)
 	HUD.build()
 	Input.start()
