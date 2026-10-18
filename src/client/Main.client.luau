@@ -111,6 +111,7 @@ local function endRun(finalScore: number)
 	end
 	state.mode = "over"
 	Input.enabled = false
+	HUD.setTouchStick(false, 0, 0, 0, 0)
 	-- Итоговая статистика забега: кольца, чистые кольца, макс. комбо, время.
 	local stats = ""
 	local game = state.game
