@@ -216,7 +216,22 @@ T.test("пилот без управления: игра не падает, ко
 	T.ok(game.time > 0, "игра продолжалась")
 end)
 
-T.test("затишье: включается, когда стая на грани развала", function()
+T.test("гонка: одинаковый сид даёт одинаковый курс, разный — разный", function()
+	local a = Game.new(4242)
+	local b = Game.new(4242)
+	local c = Game.new(9999)
+	-- Прогоняем, чтобы кольца появились.
+	for _ = 1, 60 * 5 do
+		Game.step(a, DT, { x = 0, y = 0, z = 1 })
+		Game.step(b, DT, { x = 0, y = 0, z = 1 })
+		Game.step(c, DT, { x = 0, y = 0, z = 1 })
+	end
+	T.eq(Game.courseSignature(a), Game.courseSignature(b), "одинаковый сид — одинаковый курс")
+	T.ok(Game.courseSignature(a) ~= Game.courseSignature(c), "разный сид — разный курс")
+	T.ok(a.seed == 4242 and b.seed == 4242, "сид сохраняется в игре")
+end)
+
+T.test("затишье: включается, когда стая на грани разлава", function()
 	local game = Game.new(31)
 	-- Оставляем в строю 5 птиц из 18 — до порога "затишья" (6).
 	for i = 1, #game.flock.birds do

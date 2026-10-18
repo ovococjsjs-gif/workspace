@@ -48,6 +48,9 @@ export type GameEvent = {
 }
 
 export type Game = {
+	--- Сид забега. Один и тот же сид у всех участников гонки даёт
+	--- полностью одинаковый курс (кольца, камни, раскладка стаи).
+	seed: number,
 	mode: string, -- "playing" | "over"
 	time: number,
 	leaderPos: Vec3,
@@ -82,7 +85,9 @@ local UP = Vec.new(0, 1, 0)
 local Game = {}
 
 function Game.new(seed: number?): Game
+	local runSeed = seed or 20261018
 	local game: Game = {
+		seed = runSeed,
 		mode = "playing",
 		time = 0,
 		leaderPos = Vec.new(0, 20, 0),
@@ -94,9 +99,9 @@ function Game.new(seed: number?): Game
 		boostCooldown = 0,
 		boostStarted = false,
 		mercyTime = 0,
-		flock = Flock.new(Config.flockSize, seed or 20261018),
-		rings = Rings.new(seed and (seed + 1) or 424242),
-		obstacles = Obstacles.new(seed and (seed + 2) or 777),
+		flock = Flock.new(Config.flockSize, runSeed),
+		rings = Rings.new(runSeed + 1),
+		obstacles = Obstacles.new(runSeed + 2),
 		score = Score.new(),
 		phaseIndex = 1,
 		lostTimer = 0,
@@ -120,9 +125,9 @@ function Game.reset(game: Game): ()
 	game.boostCooldown = 0
 	game.boostStarted = false
 	game.mercyTime = 0
-	game.flock = Flock.new(Config.flockSize, 20261018)
-	game.rings = Rings.new(424242)
-	game.obstacles = Obstacles.new(777)
+	game.flock = Flock.new(Config.flockSize, game.seed)
+	game.rings = Rings.new(game.seed + 1)
+	game.obstacles = Obstacles.new(game.seed + 2)
 	game.score = Score.new()
 	game.phaseIndex = 1
 	game.lostTimer = 0
@@ -147,6 +152,24 @@ function Game.reset(game: Game): ()
 		bird.pos = Flock.slotTarget(ctx, bird.slot)
 		bird.vel = Vec.zero()
 	end
+end
+
+--- Подпись курса: одинаковый сид — одинаковая подпись.
+--- Используется в гонке, чтобы убедиться, что у всех участников один курс.
+function Game.courseSignature(game: Game): number
+	local h = 2166136261
+	local function mix(v: number)
+		-- В Luau нет побитовых операций, поэтому обычная модульная арифметика.
+		h = (h * 31 + math.floor(v * 1000) % 100000) % 4294967296
+	end
+	for _, ring in game.rings.rings do
+		mix(ring.pos.x)
+		mix(ring.pos.y)
+		mix(ring.pos.z)
+		mix(ring.radius)
+	end
+	mix(game.seed)
+	return h
 end
 
 --- Сила ветра: базовая + порывы, растёт от фазы к фазе.
