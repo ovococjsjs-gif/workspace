@@ -126,6 +126,7 @@ local buyPassRemote = remote("BuyPass")
 local buyProductRemote = remote("BuyProduct")
 local permsRemote = remote("PermsUpdate")
 local buyResultRemote = remote("BuyResult")
+local useChargeRemote = remote("UseBoostCharge")
 
 if bestRemote then
 	bestRemote.OnClientEvent:Connect(function(value: number)
@@ -199,6 +200,10 @@ local function applyStandings(entries: any)
 	state.players = #list
 	state.place = Race.placeOf(list, MY_USER_ID)
 	HUD.setStandings(list, MY_USER_ID)
+	-- Если забег уже закончился, обновляем финальный экран (появилось место).
+	if state.mode == "over" then
+		showEndScreen()
+	end
 end
 
 if standingsRemote then
@@ -563,7 +568,21 @@ local function boot()
 		local game = state.game
 		if state.mode == "playing" and game then
 			local ax, ay, az = Input.getAxes()
-			local events = Game.step(game, step, { x = ax, y = ay, z = az, boost = Input.consumeBoost() })
+			local boostRequest = Input.consumeBoost()
+			-- Заряд «мгновенного рывка»: срабатывает, даже когда обычный рывок на перезарядке.
+			if boostRequest and state.perms.boostCharges > 0 and game.boostCooldown > 0 then
+				state.perms.boostCharges -= 1
+				game.boostTime = Config.leader.boostDuration
+				game.boostCooldown = 0
+				boostRequest = false
+				if useChargeRemote then
+					pcall(function()
+						useChargeRemote:FireServer()
+					end)
+				end
+				HUD.toast("РЫВОК ЗА ЗАРЯД!", HUD.COLOR_ACCENT)
+			end
+			local events = Game.step(game, step, { x = ax, y = ay, z = az, boost = boostRequest })
 			for _, event in events do
 				handleEvent(event)
 			end

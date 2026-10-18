@@ -465,6 +465,24 @@ step("Гонка: общий раунд, живой рейтинг и магаз
 	local promptedProduct = rawget(services.MarketplaceService, "__promptedProduct")
 	check(promptedProduct ~= nil, "сервер вызвал PromptProductPurchase для зарядов")
 
+	-- Обработка чека: сервер должен выдать заряды мгновенного рывка.
+	local receipt = services.MarketplaceService.ProcessReceipt
+	if type(receipt) == "function" then
+		local response = receipt({ PlayerId = player.UserId, ProductId = 4243 })
+		check(response ~= nil, "обработчик чека ответил: " .. tostring(response))
+		for _ = 1, 3 do
+			for _, fn in ipairs(heartbeat.__signals) do
+				fn(1 / 60)
+			end
+		end
+		check(
+			Main.getState().perms.boostCharges == 3,
+			"после чека клиент получил 3 заряда рывка: " .. tostring(Main.getState().perms.boostCharges)
+		)
+	else
+		check(false, "сервер не назначил обработчик ProcessReceipt")
+	end
+
 	-- Владение game pass'ом: сервер должен прислать перк клиенту.
 	-- Настраиваем ID покупки (в репозитории он = 0, плейсхолдер).
 	local ShopConfig = require("./ShopConfig")

@@ -13,6 +13,7 @@ require(script.Parent.test_difficulty)
 require(script.Parent.test_simulation)
 require(script.Parent.test_race)
 require(script.Parent.test_perms)
+require(script.Parent.test_shop)
 
 local _, failed = T.run()
 

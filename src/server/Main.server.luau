@@ -54,8 +54,10 @@ local buyPassRemote = makeRemote("BuyPass")
 local buyProductRemote = makeRemote("BuyProduct")
 local permsRemote = makeRemote("PermsUpdate")
 local buyResultRemote = makeRemote("BuyResult")
+local useChargeRemote = makeRemote("UseBoostCharge")
 
 local bestStore = DataStoreService:GetDataStore(STORE_NAME)
+local chargeStore = DataStoreService:GetDataStore("flock_boosts_v1")
 local bestScores: { [Player]: number } = {}
 --- Время, когда игрок появился на сервере: сервер считает длительность забега сам,
 --- чтобы клиент не мог «накрутить» её и обойти проверку скорости набора очков.
@@ -270,9 +272,11 @@ end)
 -- Реальные ID создаются в Roblox Creator Dashboard и вписываются туда.
 
 --- Перки игрока (покупки).
-local perms: { [Player]: { [string]: boolean } } = {}
+local perms: { [Player]: { [string]: any } } = {}
+--- Заряды «мгновенного рывка» (developer product «ЗАРЯДЫ РЫВКА x3»).
+local charges: { [Player]: number } = {}
 
-local function permSet(player: Player, key: string, value: boolean)
+local function permSet(player: Player, key: string, value: any)
 	local set = perms[player]
 	if not set then
 		set = {}
@@ -281,8 +285,13 @@ local function permSet(player: Player, key: string, value: boolean)
 	set[key] = value
 end
 
-local function permList(player: Player): { [string]: boolean }
-	return perms[player] or {}
+local function permList(player: Player): { [string]: any }
+	local list: { [string]: any } = {}
+	for key, value in perms[player] or {} do
+		list[key] = value
+	end
+	list.boostCharges = charges[player] or 0
+	return list
 end
 
 local function pushPerms(player: Player)
@@ -308,10 +317,34 @@ end
 
 Players.PlayerAdded:Connect(function(player: Player)
 	refreshPasses(player)
+	-- Подгружаем купленные заряды рывка.
+	task.spawn(function()
+		local ok, value = pcall(function()
+			return chargeStore:GetAsync("c_" .. tostring(player.UserId))
+		end)
+		if ok and typeof(value) == "number" then
+			charges[player] = math.max(0, math.floor(value))
+			pushPerms(player)
+		end
+	end)
 end)
 
 Players.PlayerRemoving:Connect(function(player: Player)
 	perms[player] = nil
+	charges[player] = nil
+end)
+
+--- Трата заряда мгновенного рывка (клиент сообщает об использовании).
+useChargeRemote.OnServerEvent:Connect(function(player: Player)
+	local left = charges[player] or 0
+	if left > 0 then
+		left -= 1
+		charges[player] = left
+		pcall(function()
+			chargeStore:SetAsync("c_" .. tostring(player.UserId), left)
+		end)
+	end
+	pushPerms(player)
 end)
 
 --- Ответ клиенту о покупке (true — окно покупки открыто).
@@ -352,12 +385,15 @@ buyProductRemote.OnServerEvent:Connect(function(player: Player, key: any)
 	buyResult(player, true)
 end)
 
---- Соответствие ID продуктов и ключей перков.
-local PRODUCT_KEYS_BY_ID: { [number]: string } = {}
-for key, id in pairs(ShopConfig.products) do
-	if id ~= 0 then
-		PRODUCT_KEYS_BY_ID[id] = key
+--- Ключ перка по ID developer product'а.
+--- Таблица строится на лету, чтобы ID можно было настроить и после старта сервера.
+local function productKeyFor(id: number): string?
+	for key, productId in pairs(ShopConfig.products) do
+		if productId == id and productId ~= 0 then
+			return key
+		end
 	end
+	return nil
 end
 
 -- Обработка покупок developer product'ов. Roblox вызывает её, когда покупка
@@ -367,12 +403,16 @@ MarketplaceService.ProcessReceipt = function(receiptInfo: any)
 	if not player then
 		return Enum.ProductInfoResponse.NotProcessedYet
 	end
-	local key = PRODUCT_KEYS_BY_ID[receiptInfo.ProductId]
+	local key = productKeyFor(receiptInfo.ProductId)
 	if not key then
 		return Enum.ProductInfoResponse.AlreadyProcessed
 	end
-	-- Перк выдаётся сразу (в этой версии — один заряд «мгновенного рывка»).
-	permSet(player, key, true)
+	-- Повторяемая покупка: прибавляем заряды мгновенного рывка.
+	local left = (charges[player] or 0) + 3
+	charges[player] = left
+	pcall(function()
+		chargeStore:SetAsync("c_" .. tostring(player.UserId), left)
+	end)
 	pushPerms(player)
 	return Enum.ProductInfoResponse.PurchaseSuccess
 end
