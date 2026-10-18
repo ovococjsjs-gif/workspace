@@ -32,10 +32,6 @@ function Course.pointAt(d: number): CoursePoint
 end
 
 --- Расстояние по курсу до ближайшей точки (приблизительно, по z).
-function Course.distanceAlong(pos: Vec.Vec3): number
-	return pos.z
-end
-
 --- Знак отклонения от оси трассы по горизонтали.
 function Course.lateralOffset(pos: Vec.Vec3, coursePos: Vec.Vec3): number
 	return pos.x - coursePos.x

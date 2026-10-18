@@ -113,8 +113,4 @@ function Input.consumeBoost(): boolean
 end
 
 --- Любая из клавиш "вперёд" нажата (для автопилота/подсказки).
-function Input.isThrusting(): boolean
-	return keys.up or keys.down or keys.left or keys.right or keys.raise or keys.lower
-end
-
 return Input

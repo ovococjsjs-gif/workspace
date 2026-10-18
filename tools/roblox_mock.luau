@@ -186,6 +186,22 @@ EnumType.PartType = makeEnum({ Block = "Block", Ball = "Ball", Cylinder = "Cylin
 EnumType.Material = makeEnum({ Plastic = "Plastic", Neon = "Neon", Grass = "Grass", Slate = "Slate", SmoothPlastic = "SmoothPlastic" })
 EnumType.Font = makeEnum({ GothamBold = "GothamBold", Gotham = "Gotham" })
 EnumType.UserInputType = makeEnum({ MouseButton1 = "MouseButton1", Keyboard = "Keyboard" })
+-- KeyCode: значения-строки, чтобы ввод можно было проверять сравнением
+-- (как это делает Input.client.luau: key == Enum.KeyCode.W).
+EnumType.KeyCode = makeEnum({
+	W = "W",
+	A = "A",
+	S = "S",
+	D = "D",
+	Up = "Up",
+	Down = "Down",
+	Left = "Left",
+	Right = "Right",
+	Space = "Space",
+	LeftShift = "LeftShift",
+	C = "C",
+	Unknown = "Unknown",
+})
 EnumType.CameraType = makeEnum({ Scriptable = "Scriptable", Custom = "Custom" })
 EnumType.EasingStyle = makeEnum({ Back = "Back", Quad = "Quad", Linear = "Linear" })
 EnumType.EasingDirection = makeEnum({ Out = "Out", In = "In" })

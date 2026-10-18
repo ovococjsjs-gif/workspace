@@ -111,16 +111,6 @@ function Difficulty.phaseAt(elapsed: number): Phase
 end
 
 --- Индекс фазы (1..4) — для смены оформления/музыки.
-function Difficulty.phaseIndex(elapsed: number): number
-	local index = 1
-	for i = 1, #PHASES do
-		if elapsed >= PHASES[i].at then
-			index = i
-		end
-	end
-	return index
-end
-
 --- Насколько кольцо должно быть маленьким (с учётом базовой настройки).
 function Difficulty.ringRadius(elapsed: number): number
 	local phase = Difficulty.phaseAt(elapsed)

@@ -202,16 +202,37 @@ step("Main: запуск клиента и кадры игрового цикл�
 		check(true, "забег запущен по кнопке")
 	end
 
+	-- Прогоняем забег дольше: первое кольцо проходится примерно на 4.4-й секунде.
+	-- Этот участок кода (обработка события кольца) иначе остался бы непроверенным.
+	local uisEarly = services.UserInputService
+	for _, fn in ipairs(uisEarly.InputBegan.__signals) do
+		fn({ KeyCode = Mock.env.Enum.KeyCode.W, UserInputType = "Keyboard" }, false)
+	end
+	for _ = 1, 400 do
+		for _, fn in ipairs(heartbeat.__signals) do
+			fn(1 / 60)
+		end
+	end
+	for _, fn in ipairs(uisEarly.InputEnded.__signals) do
+		fn({ KeyCode = Mock.env.Enum.KeyCode.W, UserInputType = "Keyboard" }, false)
+	end
+	local stateAfter = Main.getState()
+	local ringsPassed = 0
+	if stateAfter and stateAfter.game then
+		ringsPassed = stateAfter.game.score.rings
+	end
+	check(ringsPassed > 0, "во время прогона засчитано колец: " .. tostring(ringsPassed))
+
 	-- Ввод: зажимаем клавиши и отпускаем.
 	local uis = services.UserInputService
 	for _, fn in ipairs(uis.InputBegan.__signals) do
-		fn({ KeyCode = { W = "W", A = "A", D = "D", Space = "Space" }, UserInputType = "Keyboard" }, false)
+		fn({ KeyCode = Mock.env.Enum.KeyCode.W, UserInputType = "Keyboard" }, false)
 	end
 	for _, fn in ipairs(heartbeat.__signals) do
 		fn(1 / 60)
 	end
 	for _, fn in ipairs(uis.InputEnded.__signals) do
-		fn({ KeyCode = { W = "W", A = "A", D = "D", Space = "Space" }, UserInputType = "Keyboard" }, false)
+		fn({ KeyCode = Mock.env.Enum.KeyCode.W, UserInputType = "Keyboard" }, false)
 	end
 	for _, fn in ipairs(heartbeat.__signals) do
 		fn(1 / 60)
@@ -220,7 +241,7 @@ step("Main: запуск клиента и кадры игрового цикл�
 
 	-- ЛКМ — рывок.
 	for _, fn in ipairs(uis.InputBegan.__signals) do
-		fn({ KeyCode = { Unknown = "Unknown" }, UserInputType = "MouseButton1" }, false)
+		fn({ KeyCode = Mock.env.Enum.KeyCode.Unknown, UserInputType = "MouseButton1" }, false)
 	end
 	for _, fn in ipairs(heartbeat.__signals) do
 		fn(1 / 60)
