@@ -43,6 +43,8 @@ export type GameEvent = {
 	gameOver: boolean,
 	--- Вожак пошёл на «рывок».
 	boost: boolean,
+	--- Началось «затишье» (второй шанс).
+	mercy: boolean,
 }
 
 export type Game = {
@@ -60,6 +62,8 @@ export type Game = {
 	boostTime: number,
 	--- Осталось до перезарядки «рывка», сек.
 	boostCooldown: number,
+	--- Осталось времени «затишья» (ветр стихает, камни не спавнятся), сек.
+	mercyTime: number,
 	--- Был ли рывок активирован в этом кадре (для события/звука).
 	boostStarted: boolean,
 	flock: Flock.Flock,
@@ -89,6 +93,7 @@ function Game.new(seed: number?): Game
 		boostTime = 0,
 		boostCooldown = 0,
 		boostStarted = false,
+		mercyTime = 0,
 		flock = Flock.new(Config.flockSize, seed or 20261018),
 		rings = Rings.new(seed and (seed + 1) or 424242),
 		obstacles = Obstacles.new(seed and (seed + 2) or 777),
@@ -114,6 +119,7 @@ function Game.reset(game: Game): ()
 	game.boostTime = 0
 	game.boostCooldown = 0
 	game.boostStarted = false
+	game.mercyTime = 0
 	game.flock = Flock.new(Config.flockSize, 20261018)
 	game.rings = Rings.new(424242)
 	game.obstacles = Obstacles.new(777)
@@ -217,6 +223,7 @@ function Game.step(game: Game, dt: number, input: Input): { GameEvent }
 		phaseName = nil,
 		gameOver = false,
 		boost = false,
+		mercy = false,
 	}
 	if game.boostStarted then
 		event.boost = true
@@ -229,8 +236,21 @@ function Game.step(game: Game, dt: number, input: Input): { GameEvent }
 	end
 
 	local cp = Course.pointAt(game.leaderPos.z)
+
+	-- «Затишье»: если стая на грани развала, ветер стихает — второй шанс.
+	if game.mercyTime > 0 then
+		game.mercyTime = math.max(0, game.mercyTime - dt)
+	end
+	local aliveNow = Flock.inFormation(game.flock)
+	if game.mercyTime <= 0 and aliveNow > 0 and aliveNow <= Config.mercy.aliveThreshold then
+		game.mercyTime = Config.mercy.duration
+		event.mercy = true
+	end
+	local mercyActive = game.mercyTime > 0
+
 	-- Ветер — поперечный, в системе координат курса (иначе он «плывёт» вместе с изгибом трассы).
-	local wind = Vec.scale(cp.right, Game.windStrength(game.time, phase))
+	local windScale = if mercyActive then Config.mercy.windFactor else 1.0
+	local wind = Vec.scale(cp.right, Game.windStrength(game.time, phase) * windScale)
 
 	updateLeader(game, dt, wind, input)
 
@@ -254,8 +274,13 @@ function Game.step(game: Game, dt: number, input: Input): { GameEvent }
 	local raw = math.clamp(math.max(mismatch * 7.0, inputJerk), 0, 1)
 	game.agitation = game.agitation + (raw - game.agitation) * math.clamp(dt * 3.0, 0, 1)
 
-	-- Камни отталкивают птиц.
-	Obstacles.ensureSpawned(game.obstacles, game.leaderPos.z, phase.obstacleChance, 120)
+	-- Камни отталкивают птиц (во время затишья их нет).
+	Obstacles.ensureSpawned(
+		game.obstacles,
+		game.leaderPos.z,
+		if mercyActive then 0 else phase.obstacleChance,
+		120
+	)
 	Obstacles.cull(game.obstacles, game.leaderPos.z)
 	Obstacles.applyPush(game.obstacles, game.flock.birds, dt)
 

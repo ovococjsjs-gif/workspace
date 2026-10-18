@@ -617,6 +617,20 @@ function HUD.setPhase(name: string, index: number)
 	end
 end
 
+--- Индикатор «затишья» (второй шанс).
+function HUD.setMercy(active: boolean, left: number)
+	if hintLabel then
+		if active then
+			hintLabel.Text = string.format("ЗАТИШЬЕ: ВЕТЕР СТИХ (%.0f с)", math.max(left, 0))
+			hintLabel.TextColor3 = COLOR_GOOD
+			hintLabel.TextTransparency = 0
+		else
+			hintLabel.TextColor3 = COLOR_TEXT
+			hintLabel.TextTransparency = 0.25
+		end
+	end
+end
+
 --- Таймер забега (секунды).
 function HUD.setTime(seconds: number)
 	if timeLabel then

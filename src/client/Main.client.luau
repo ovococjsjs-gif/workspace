@@ -174,6 +174,11 @@ local function handleEvent(event: Game.GameEvent)
 		HUD.setScore(state.game and state.game.score.score or 0)
 	end
 
+	if event.mercy then
+		HUD.toast("ЗАТИШЬЕ — ПОСЛЕДНИЙ ШАНС СОБРАТЬ СТАЮ", HUD.COLOR_GOOD)
+		Audio.recover()
+	end
+
 	if event.boost then
 		HUD.toast("РЫВОК!", HUD.COLOR_ACCENT)
 		Audio.boost()
@@ -303,6 +308,7 @@ local function boot()
 			local panic = game.flock.panic
 			HUD.setCalm(1 - panic)
 			HUD.setTime(game.time)
+			HUD.setMercy(game.mercyTime > 0, game.mercyTime)
 			HUD.setPhaseProgress((game.phaseIndex - 1) / 3)
 			updateStrayArrow(game)
 			if panic > 0.55 and not panicWarned then

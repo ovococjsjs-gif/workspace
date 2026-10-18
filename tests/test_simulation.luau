@@ -197,6 +197,31 @@ T.test("магнит: потерянная птица сама тянется к
 	T.ok(bird.mode == "returning" or bird.mode == "formation", "птица должна начать возвращаться в строй")
 end)
 
+T.test("затишье: включается, когда стая на грани развала", function()
+	local game = Game.new(31)
+	-- Оставляем в строю 5 птиц из 18 — до порога "затишья" (6).
+	for i = 1, #game.flock.birds do
+		if i > 5 then
+			game.flock.birds[i].mode = "lost"
+		end
+	end
+	local mercy = false
+	for _ = 1, 30 do
+		local events = Game.step(game, DT, { x = 0, y = 0, z = 1 })
+		for _, event in events do
+			if event.mercy then
+				mercy = true
+			end
+		end
+		if mercy then
+			break
+		end
+	end
+	T.ok(mercy, "затишье должно включаться, когда птиц в строю мало")
+	T.ok(game.mercyTime > 0, "таймер затишья должен идти")
+	T.ok(game.mercyTime <= Config.mercy.duration, "затишье не должно длиться дольше заданного")
+end)
+
 T.test("рывок: перезарядка — второй запрос игнорируется", function()
 	local game = Game.new(12)
 	local starts = 0
