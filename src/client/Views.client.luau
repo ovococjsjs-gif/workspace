@@ -10,6 +10,7 @@ local Shared = ReplicatedStorage:WaitForChild("FlockShared", 10)
 
 local Vec = require(Shared.Vec)
 local Config = require(Shared.Config)
+local Course = require(Shared.Course)
 local Flock = require(Shared.Flock)
 local Rings = require(Shared.Rings)
 local Obstacles = require(Shared.Obstacles)
@@ -32,8 +33,10 @@ local birdBeacons: { Part } = {}
 local ringVisuals: { [number]: RingVisual } = {}
 --- Камни-препятствия: визуализация общих данных Obstacles.
 local obstacleVisuals: { [number]: Part } = {}
---- «Призраки» соперников: маркер и нимб для каждого игрока в забеге.
-local ghostParts: { [number]: { marker: Part, halo: Part } } = {}
+--- «Призраки» соперников: маркер, нимб и маленькая стая для каждого игрока.
+local ghostParts: { [number]: { marker: Part, halo: Part, birds: { Part } } } = {}
+--- Сколько птиц рисуем у соперника.
+local GHOST_BIRDS = 6
 
 --- Палитра цветов призраков (по кругу).
 local GHOST_COLORS = {
@@ -444,12 +447,37 @@ function Views.updateGhosts(entries: any, myUserId: number)
 					0.6
 				)
 				halo.LightEmission = 0.3
-				ghost = { marker = marker, halo = halo }
+				-- Маленькая стая соперника: птицы строем в V за его вожаком.
+				local birds: { Part } = {}
+				for i = 1, GHOST_BIRDS do
+					local bird = makePart(
+						"GhostBird",
+						Vector3.new(1.6, 1.2, 2.4),
+						color,
+						Enum.Material.SmoothPlastic,
+						nil,
+						0.45
+					)
+					table.insert(birds, bird)
+				end
+				ghost = { marker = marker, halo = halo, birds = birds }
 				ghostParts[uid] = ghost
 			end
 			local position = Vector3.new(entry.pos.x, entry.pos.y, entry.pos.z)
 			ghost.marker.Position = position
 			ghost.halo.Position = position
+			-- Строим стаю соперника по курсу трассы в его точке.
+			local cp = Course.pointAt(entry.pos.z)
+			local forward = Vector3.new(cp.tangent.x, cp.tangent.y, cp.tangent.z)
+			local right = Vector3.new(cp.right.x, cp.right.y, cp.right.z)
+			for i, bird in ghost.birds do
+				local row = math.ceil(i / 2)
+				local side = if i % 2 == 0 then 1 else -1
+				bird.Position = position
+					+ forward * (-row * 7)
+					+ right * (side * row * 4)
+					+ Vector3.new(0, -1.5, 0)
+			end
 		end
 	end
 	-- Убираем призраков, которые вышли из забега.
@@ -464,6 +492,9 @@ function Views.updateGhosts(entries: any, myUserId: number)
 		if ghost then
 			ghost.marker:Destroy()
 			ghost.halo:Destroy()
+			for _, bird in ghost.birds do
+				bird:Destroy()
+			end
 			ghostParts[uid] = nil
 		end
 	end
@@ -480,6 +511,9 @@ function Views.reset()
 	for uid, ghost in ghostParts do
 		ghost.marker:Destroy()
 		ghost.halo:Destroy()
+		for _, bird in ghost.birds do
+			bird:Destroy()
+		end
 		ghostParts[uid] = nil
 	end
 end

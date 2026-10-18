@@ -420,12 +420,17 @@ step("Гонка: общий раунд, живой рейтинг и магаз
 	end
 	check(#Main.getState().standings >= 2, "в рейтинге два игрока: " .. tostring(#Main.getState().standings))
 	local ghostFound = false
+	local ghostBirds = 0
 	for _, child in ipairs(services.Workspace:GetDescendants()) do
 		if child.Name == "Ghost" then
 			ghostFound = true
 		end
+		if child.Name == "GhostBird" then
+			ghostBirds += 1
+		end
 	end
 	check(ghostFound, "клиент нарисовал призрака соперника")
+	check(ghostBirds >= 6, "нарисована стая соперника: " .. tostring(ghostBirds) .. " птиц")
 
 	-- Финиш: сервер должен присвоить место.
 	-- Переводим клиент в режим финала — тогда он рисует экран с местом и таблицей.

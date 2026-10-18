@@ -1039,12 +1039,25 @@ function HUD.setStandings(entries: any, myUserId: number)
 			local score = if type(entry.score) == "number" then entry.score else 0
 			local distance = if type(entry.distance) == "number" then math.floor(entry.distance) else 0
 			local mine = entry.userId == myUserId
+			-- Для своей строки показываем отрыв от лидера.
+			local gap = ""
+			if mine and i > 1 then
+				local leader = entries[1]
+				local leaderScore = if type(leader) == "table" and type(leader.score) == "number"
+					then leader.score
+					else 0
+				local diff = leaderScore - score
+				if diff > 0 then
+					gap = string.format("  -%d", diff)
+				end
+			end
 			row.Text = string.format(
-				"%d. %s - %d (%dм)%s",
+				"%d. %s - %d (%dм)%s%s",
 				place,
 				tostring(entry.name),
 				score,
 				distance,
+				gap,
 				if mine then "  <-" else ""
 			)
 			row.TextColor3 = if mine then COLOR_ACCENT else COLOR_TEXT
