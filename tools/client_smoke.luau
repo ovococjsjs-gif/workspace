@@ -428,6 +428,8 @@ step("Гонка: общий раунд, живой рейтинг и магаз
 	check(ghostFound, "клиент нарисовал призрака соперника")
 
 	-- Финиш: сервер должен присвоить место.
+	-- Переводим клиент в режим финала — тогда он рисует экран с местом и таблицей.
+	Main.getState().mode = "over"
 	if progress then
 		for _, fn in ipairs(progress.OnServerEvent.__signals) do
 			fn(player, 5000, 1200, 3, true, 61)
@@ -439,6 +441,10 @@ step("Гонка: общий раунд, живой рейтинг и магаз
 		end
 	end
 	check(Main.getState().place == 1, "после финиша сервер присвоил место: " .. tostring(Main.getState().place))
+	check(
+		Main.getState().finalResults ~= "",
+		"финальный экран содержит таблицу забега: " .. tostring(Main.getState().finalResults)
+	)
 
 	-- Магазин: кнопка открывает панель, кнопка покупки уходит на сервер.
 	local screen = services.Players.LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("FlockGui")

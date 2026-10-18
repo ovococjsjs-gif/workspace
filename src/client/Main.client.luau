@@ -58,6 +58,8 @@ type ClientState = {
 	finalScore: number,
 	--- Статистика последнего забега.
 	finalStats: string,
+	--- Итоговая таблица забега (для финального экрана).
+	finalResults: string,
 }
 
 local state: ClientState = {
@@ -76,6 +78,7 @@ local state: ClientState = {
 	progressTimer = 0,
 	finalScore = 0,
 	finalStats = "",
+	finalResults = "",
 }
 
 --- Кто мы для сервера: нужен UserId, чтобы подсветить свою строку в рейтинге.
@@ -318,15 +321,35 @@ local function endRun(finalScore: number)
 	end
 end
 
---- Финальный экран: счёт, рекорд, статистика и место в забеге.
+--- Итоговая таблица забега: до пяти участников с местами и счётом.
+local function buildResults(): string
+	local list = Race.sort(state.standings)
+	if #list == 0 then
+		return ""
+	end
+	local lines: { string } = {}
+	for i, entry in ipairs(list) do
+		if i > 5 then
+			break
+		end
+		local place = if entry.place then tostring(entry.place) else tostring(i)
+		local mine = if entry.userId == MY_USER_ID then "  <- вы" else ""
+		table.insert(lines, string.format("%s. %s - %d%s", place, tostring(entry.name), entry.score or 0, mine))
+	end
+	return table.concat(lines, "\n")
+end
+
+--- Финальный экран: счёт, рекорд, статистика, место и таблица забега.
 showEndScreen = function()
+	state.finalResults = buildResults()
 	HUD.showEnd(
 		true,
 		state.finalScore,
 		math.max(state.best, state.finalScore),
 		state.finalStats,
 		state.place,
-		state.players
+		state.players,
+		state.finalResults
 	)
 end
 

@@ -39,6 +39,7 @@ local endScore: TextLabel? = nil
 local endBest: TextLabel? = nil
 local endStats: TextLabel? = nil
 local endPlace: TextLabel? = nil
+local endResults: TextLabel? = nil
 local reticle: Frame? = nil
 local strayArrow: TextLabel? = nil
 local timeLabel: TextLabel? = nil
@@ -452,6 +453,15 @@ function HUD.build()
 		TextSize = 24,
 		Text = "",
 		TextColor3 = COLOR_ACCENT,
+		Visible = false,
+	})
+	endResults = textLabel(endScreen, {
+		Position = UDim2.new(0.5, -400, 0.5, 92),
+		Size = UDim2.fromOffset(800, 110),
+		TextSize = 17,
+		Text = "",
+		TextColor3 = COLOR_TEXT,
+		TextTransparency = 0.2,
 		Visible = false,
 	})
 	endStats = textLabel(endScreen, {
@@ -940,8 +950,16 @@ function HUD.setStandings(entries: any, myUserId: number)
 		if type(entry) == "table" then
 			local place = if type(entry.place) == "number" then entry.place else i
 			local score = if type(entry.score) == "number" then entry.score else 0
+			local distance = if type(entry.distance) == "number" then math.floor(entry.distance) else 0
 			local mine = entry.userId == myUserId
-			row.Text = string.format("%d. %s - %d%s", place, tostring(entry.name), score, if mine then "  <-" else "")
+			row.Text = string.format(
+				"%d. %s - %d (%dм)%s",
+				place,
+				tostring(entry.name),
+				score,
+				distance,
+				if mine then "  <-" else ""
+			)
 			row.TextColor3 = if mine then COLOR_ACCENT else COLOR_TEXT
 			row.Visible = true
 		else
@@ -991,7 +1009,15 @@ function HUD.showStart(show: boolean)
 	end
 end
 
-function HUD.showEnd(show: boolean, score: number, best: number, stats: string?, place: number?, total: number?)
+function HUD.showEnd(
+	show: boolean,
+	score: number,
+	best: number,
+	stats: string?,
+	place: number?,
+	total: number?,
+	results: string?
+)
 	if not endScreen then
 		return
 	end
@@ -1017,6 +1043,10 @@ function HUD.showEnd(show: boolean, score: number, best: number, stats: string?,
 			else
 				endPlace.Visible = false
 			end
+		end
+		if endResults then
+			endResults.Text = results or ""
+			endResults.Visible = results ~= nil and results ~= ""
 		end
 	end
 end
