@@ -131,11 +131,21 @@ function Game.reset(game: Game): ()
 	game.events = {}
 	game.mode = "playing"
 
-	-- Стая стартует сразу за лидером, по слотам строя.
+	-- Стая стартует сразу за лидером, ровно по слотам строя:
+	-- так первый кадр (и стартовый экран) выглядит как собранная стая.
+	local cp = Course.pointAt(0)
+	local ctx: Flock.FlockContext = {
+		leaderPos = game.leaderPos,
+		courseRight = cp.right,
+		courseForward = cp.tangent,
+		wind = Vec.zero(),
+		leaderAgitation = 0,
+		dt = 0,
+	}
 	for i = 1, #game.flock.birds do
 		local bird = game.flock.birds[i]
-		local lateral, back = Flock.slotOffset(bird.slot)
-		bird.pos = Vec.new(lateral, 20 + ((bird.slot % 3) - 1) * 2.4, -back)
+		bird.pos = Flock.slotTarget(ctx, bird.slot)
+		bird.vel = Vec.zero()
 	end
 end
 
