@@ -200,6 +200,8 @@ local function applyStandings(entries: any)
 	state.players = #list
 	state.place = Race.placeOf(list, MY_USER_ID)
 	HUD.setStandings(list, MY_USER_ID)
+	-- «Призраки» соперников: видно, где летят другие стаи.
+	Views.updateGhosts(list, MY_USER_ID)
 	-- Если забег уже закончился, обновляем финальный экран (появилось место).
 	if state.mode == "over" then
 		showEndScreen()
@@ -636,7 +638,8 @@ local function boot()
 							game.leaderPos.z,
 							Game.flockAlive(game),
 							game.mode == "over",
-							game.time
+							game.time,
+							{ x = game.leaderPos.x, y = game.leaderPos.y, z = game.leaderPos.z }
 						)
 					end)
 				end

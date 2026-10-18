@@ -400,6 +400,33 @@ step("Гонка: общий раунд, живой рейтинг и магаз
 	local standings = Main.getState().standings
 	check(#standings >= 1, "клиент получил рейтинг забега: " .. tostring(#standings) .. " игрок(ов)")
 
+	-- Второй игрок: сервер должен включить его в рейтинг, а клиент — нарисовать «призрака».
+	local rival = { UserId = 777, Name = "Соперник" }
+	local requestRound = remotes and remotes:FindFirstChild("RequestRound")
+	if requestRound then
+		for _, fn in ipairs(requestRound.OnServerEvent.__signals) do
+			fn(rival)
+		end
+	end
+	if progress then
+		for _, fn in ipairs(progress.OnServerEvent.__signals) do
+			fn(rival, 4200, 1100, 16, false, 60, { x = 12, y = 22, z = 900 })
+		end
+	end
+	for _ = 1, 80 do
+		for _, fn in ipairs(heartbeat.__signals) do
+			fn(1 / 60)
+		end
+	end
+	check(#Main.getState().standings >= 2, "в рейтинге два игрока: " .. tostring(#Main.getState().standings))
+	local ghostFound = false
+	for _, child in ipairs(services.Workspace:GetDescendants()) do
+		if child.Name == "Ghost" then
+			ghostFound = true
+		end
+	end
+	check(ghostFound, "клиент нарисовал призрака соперника")
+
 	-- Финиш: сервер должен присвоить место.
 	if progress then
 		for _, fn in ipairs(progress.OnServerEvent.__signals) do

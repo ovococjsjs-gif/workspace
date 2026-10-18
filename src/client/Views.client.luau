@@ -32,6 +32,18 @@ local birdBeacons: { Part } = {}
 local ringVisuals: { [number]: RingVisual } = {}
 --- Камни-препятствия: визуализация общих данных Obstacles.
 local obstacleVisuals: { [number]: Part } = {}
+--- «Призраки» соперников: маркер и нимб для каждого игрока в забеге.
+local ghostParts: { [number]: { marker: Part, halo: Part } } = {}
+
+--- Палитра цветов призраков (по кругу).
+local GHOST_COLORS = {
+	Color3.fromRGB(120, 200, 255),
+	Color3.fromRGB(255, 140, 200),
+	Color3.fromRGB(160, 255, 140),
+	Color3.fromRGB(255, 220, 110),
+	Color3.fromRGB(190, 140, 255),
+	Color3.fromRGB(120, 255, 230),
+}
 
 local COLOR_LEADER = Color3.fromRGB(255, 176, 64)
 local COLOR_BIRD = Color3.fromRGB(250, 246, 232)
@@ -395,6 +407,68 @@ function Views.updateObstacles(obstacleWorld: Obstacles.ObstacleWorld, time: num
 	end
 end
 
+--- Обновляет «призраков» соперников по рейтингу забега.
+--- entry.pos — последняя известная позиция вожака соперника.
+function Views.updateGhosts(entries: any, myUserId: number)
+	if type(entries) ~= "table" then
+		return
+	end
+	local seen: { [number]: boolean } = {}
+	for _, entry in entries do
+		if type(entry) == "table"
+			and typeof(entry.userId) == "number"
+			and entry.userId ~= myUserId
+			and type(entry.pos) == "table"
+			and typeof(entry.pos.x) == "number"
+		then
+			local uid = entry.userId
+			seen[uid] = true
+			local ghost = ghostParts[uid]
+			if not ghost then
+				local color = GHOST_COLORS[(uid % #GHOST_COLORS) + 1]
+				local marker = makePart(
+					"Ghost",
+					Vector3.new(2.6, 2.6, 2.6),
+					color,
+					Enum.Material.Neon,
+					Enum.PartType.Ball,
+					0.35
+				)
+				marker.LightEmission = 0.5
+				local halo = makePart(
+					"GhostHalo",
+					Vector3.new(0.3, 7, 7),
+					color,
+					Enum.Material.Neon,
+					Enum.PartType.Cylinder,
+					0.6
+				)
+				halo.LightEmission = 0.3
+				ghost = { marker = marker, halo = halo }
+				ghostParts[uid] = ghost
+			end
+			local position = Vector3.new(entry.pos.x, entry.pos.y, entry.pos.z)
+			ghost.marker.Position = position
+			ghost.halo.Position = position
+		end
+	end
+	-- Убираем призраков, которые вышли из забега.
+	local stale: { number } = {}
+	for uid in ghostParts do
+		if not seen[uid] then
+			table.insert(stale, uid)
+		end
+	end
+	for _, uid in stale do
+		local ghost = ghostParts[uid]
+		if ghost then
+			ghost.marker:Destroy()
+			ghost.halo:Destroy()
+			ghostParts[uid] = nil
+		end
+	end
+end
+
 function Views.reset()
 	for id in ringVisuals do
 		destroyRingVisual(id)
@@ -402,6 +476,11 @@ function Views.reset()
 	for id, part in obstacleVisuals do
 		part:Destroy()
 		obstacleVisuals[id] = nil
+	end
+	for uid, ghost in ghostParts do
+		ghost.marker:Destroy()
+		ghost.halo:Destroy()
+		ghostParts[uid] = nil
 	end
 end
 

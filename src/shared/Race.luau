@@ -22,6 +22,8 @@ export type Entry = {
 	finished: boolean,
 	--- Итоговое место (задаётся в порядке финиша).
 	place: number?,
+	--- Последняя известная позиция вожака (для «призраков» соперников).
+	pos: { x: number, y: number, z: number }?,
 }
 
 local Race = {}

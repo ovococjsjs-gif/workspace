@@ -100,6 +100,7 @@ local function ensureRacer(player: Player): Race.Entry
 			alive = 18,
 			finished = false,
 			place = nil,
+			pos = nil,
 		}
 		racers[player] = entry
 	end
@@ -154,7 +155,15 @@ requestRoundRemote.OnServerEvent:Connect(function(player: Player)
 	end
 end)
 
-progressRemote.OnServerEvent:Connect(function(player: Player, score: any, distance: any, alive: any, finished: any, elapsed: any)
+progressRemote.OnServerEvent:Connect(function(
+	player: Player,
+	score: any,
+	distance: any,
+	alive: any,
+	finished: any,
+	elapsed: any,
+	pos: any
+)
 	local entry = racers[player]
 	if not entry then
 		return
@@ -169,6 +178,14 @@ progressRemote.OnServerEvent:Connect(function(player: Player, score: any, distan
 	entry.score = score
 	entry.distance = distance
 	entry.alive = if typeof(alive) == "number" then alive else entry.alive
+	-- Позиция вожака: рисуем «призраков» соперников у каждого игрока.
+	if type(pos) == "table"
+		and typeof(pos.x) == "number"
+		and typeof(pos.y) == "number"
+		and typeof(pos.z) == "number"
+	then
+		entry.pos = { x = pos.x, y = pos.y, z = pos.z }
+	end
 	if finished == true and not entry.finished then
 		entry.finished = true
 		round.finishedOrder += 1
