@@ -34,6 +34,9 @@ bestRemote.Parent = remotes
 
 local bestStore = DataStoreService:GetDataStore(STORE_NAME)
 local bestScores: { [Player]: number } = {}
+--- Время, когда игрок появился на сервере: сервер считает длительность забега сам,
+--- чтобы клиент не мог «накрутить» её и обойти проверку скорости набора очков.
+local sessionStart: { [Player]: number } = {}
 
 local function pushBest(player: Player)
 	local value = bestScores[player]
@@ -55,11 +58,13 @@ local function loadBest(player: Player)
 end
 
 Players.PlayerAdded:Connect(function(player: Player)
+	sessionStart[player] = os.clock()
 	task.spawn(loadBest, player)
 end)
 
 Players.PlayerRemoving:Connect(function(player: Player)
 	bestScores[player] = nil
+	sessionStart[player] = nil
 end)
 
 requestRemote.OnServerEvent:Connect(function(player: Player)
@@ -70,8 +75,14 @@ submitRemote.OnServerEvent:Connect(function(player: Player, score: any, elapsed:
 	if typeof(score) ~= "number" or typeof(elapsed) ~= "number" then
 		return
 	end
+	-- Длительность забега считает сервер: клиентское значение берём только как
+	-- нижнюю оценку (если игрок играл дольше, чем был в сервере — берём серверное).
+	local started = sessionStart[player] or os.clock()
+	local serverElapsed = os.clock() - started
+	local realElapsed = math.max(elapsed, serverElapsed)
+
 	-- Отсекаем явно невозможные результаты (правила покрыты юнит-тестами).
-	if not Score.isPlausible(score, elapsed) then
+	if not Score.isPlausible(score, realElapsed) then
 		return
 	end
 	local current = bestScores[player] or 0
