@@ -76,6 +76,7 @@ Roblox-API**. Roblox-слой только рисует и читает ввод
 | `bash tools/scenario.sh booster` | «пилот с рывками»: 37 колец, 36 чистых, стая цела, счёт 29340 | [`evidence/scenario_booster.log`](evidence/scenario_booster.log) |
 | `bash tools/scenario.sh medium` | «средний пилот» (задержка реакции 0.2 с, шум в управлении): 35 колец, 33 чистых, счёт 25560 | — |
 | `bash tools/scenario.sh calm 300` | «долгий забег» (5 минут): 139 колец, 115 чистых, стая цела (18/18) — поздние фазы не ломают игру | [`evidence/scenario_calm_5min.log`](evidence/scenario_calm_5min.log) |
+| `bash tools/scenario.sh nervous 150` | «нервный пилот» (постоянная мелкая дрожь в руках): стая цела, но чистых колец заметно меньше — 56 из 62 | [`evidence/scenario_nervous.log`](evidence/scenario_nervous.log) |
 | `bash tools/scenario.sh reckless` | «паникующий пилот»: стая рассыпается 18→3, забег завершается проигрышем | [`evidence/scenario_reckless.log`](evidence/scenario_reckless.log) |
 
 `tools/scenario.sh` — это, по сути, «автотест баланса»: два сценария пилота

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Прогон сценария пилота: bash tools/scenario.sh [calm|reckless|zigzag]
+# Прогон сценария пилота: bash tools/scenario.sh [calm|medium|booster|reckless|nervous|zigzag] [сек]
 set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 LUAU_BIN="${LUAU_BIN:-/tmp/luau/build/luau}"

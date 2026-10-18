@@ -53,6 +53,22 @@ local function pilot(g: Game.Game, mode: string): Game.Input
 		if g.time % 23 < 0.05 then
 			x = if g.time % 46 < 23 then 1 else -1
 		end
+	elseif mode == "nervous" then
+		-- "Нервный" игрок: как средний, но дёргает стиком в 3 раза чаще.
+		local err = Flock.averageSlotError(g.flock, {
+			leaderPos = g.leaderPos,
+			courseForward = cp.tangent,
+			courseRight = cp.right,
+			wind = Vec.zero(),
+			time = g.time,
+		})
+		z = if err > 30 then 0.4 elseif err > 18 then 0.75 else 1.0
+		local noise = math.sin(g.time * 1.3) * 0.4 + math.sin(g.time * 3.1) * 0.15
+		x = math.clamp((g.leaderPos.x - cp.pos.x) * 0.05 + noise, -1, 1)
+		y = math.clamp(y + math.sin(g.time * 2.1) * 0.2, -1, 1)
+		-- Частые мелкие рывки (как у нервного человека) — амплитуда меньше,
+		-- но повторяются постоянно.
+		x = x + 0.55 * math.sin(g.time * 2.6)
 	elseif mode == "zigzag" then
 		x = if g.time % 4 < 2 then 1 else -1
 		z = 1
