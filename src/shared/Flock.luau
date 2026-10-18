@@ -1,0 +1,213 @@
+--!strict
+--[=[
+	Стая: чистая симуляция поведения птиц (boids-lite + строй).
+	Никаких Roblox-глобалов — модуль полностью тестируется в интерпретаторе Luau.
+
+	Модель:
+	  * у каждой птицы есть "слот" в V-образном строю относительно лидера;
+	  * птица тянется к своему слоту пружиной, расталкиваясь с соседями;
+	  * если птица отстала дальше scatterDistance — она "теряется" (lost):
+	    дрейфует по ветру и тонет; лидер может подобрать её (rally);
+	  * подобранная птица сначала "returning" (aggressive gain), потом снова в строю.
+]=]
+
+local Vec = require(script.Parent.Vec)
+local Config = require(script.Parent.Config)
+local Rng = require(script.Parent.Rng)
+
+export type Vec3 = Vec.Vec3
+
+export type BirdMode = "formation" | "lost" | "returning"
+
+export type Bird = {
+	pos: Vec3,
+	vel: Vec3,
+	slot: number,
+	mode: BirdMode,
+	flap: number,
+	seed: number,
+	lostTime: number,
+}
+
+export type Flock = {
+	birds: { Bird },
+	count: number,
+}
+
+export type FlockContext = {
+	leaderPos: Vec3,
+	courseForward: Vec3,
+	courseRight: Vec3,
+	wind: Vec3,
+	time: number,
+}
+
+export type FlockEvents = {
+	--- Индексы птиц, которые были подобраны в этом шаге.
+	recovered: { number },
+	--- Индексы птиц, которые потерялись в этом шаге.
+	scattered: { number },
+}
+
+local UP = Vec.new(0, 1, 0)
+
+local Flock = {}
+
+--- Смещение слота в строю относительно лидера (в системе координат курса).
+--- slot 0 и 1 — первая пара, 2 и 3 — вторая и т.д.
+--- ВАЖНО: самый дальний слот должен быть ближе bird.scatterDistance,
+--- иначе птица в строю считалась бы "потерянной" (см. тест).
+function Flock.slotOffset(slot: number): (number, number, number)
+	local rank = math.floor((slot + 1) / 2)
+	local side = if slot % 2 == 0 then 1 else -1
+	local lateral = side * (5.0 + rank * 5.0)
+	local back = 8.0 + rank * 6.0
+	local vertical = ((slot % 3) - 1) * 2.4
+	return lateral, back, vertical
+end
+
+function Flock.new(count: number?, seed: number?): Flock
+	local n = count or Config.flockSize
+	local rng = Rng.new(seed or 20261018)
+	local birds: { Bird } = {}
+	for i = 1, n do
+		local jitter = Rng.nextInSphere(rng, 3.0)
+		birds[i] = {
+			pos = Vec.new(jitter.x, 14 + jitter.y, -20 - i * 2.2 + jitter.z),
+			vel = Vec.zero(),
+			slot = i - 1,
+			mode = "formation",
+			flap = Rng.nextFloat(rng) * math.pi * 2,
+			seed = Rng.nextFloat(rng),
+			lostTime = 0,
+		}
+	end
+	return { birds = birds, count = n }
+end
+
+--- Целевая позиция слота в мире.
+function Flock.slotTarget(ctx: FlockContext, slot: number): Vec3
+	local lateral, back, vertical = Flock.slotOffset(slot)
+	local target = Vec.copy(ctx.leaderPos)
+	target = Vec.add(target, Vec.scale(ctx.courseRight, lateral))
+	target = Vec.add(target, Vec.scale(ctx.courseForward, -back))
+	target = Vec.add(target, Vec.scale(UP, vertical))
+	return target
+end
+
+--- Шаг симуляции стаи. Возвращает события (подбор/потеря птиц).
+function Flock.step(flock: Flock, dt: number, ctx: FlockContext): FlockEvents
+	local events: FlockEvents = { recovered = {}, scattered = {} }
+	local cfg = Config.bird
+	local birds = flock.birds
+
+	for i = 1, #birds do
+		local bird = birds[i]
+		bird.flap = bird.flap + dt * (9.0 + bird.seed * 4.0)
+
+		if bird.mode == "lost" then
+			-- Дрейф по ветру + медленное падение.
+			bird.vel = Vec.add(bird.vel, Vec.scale(ctx.wind, dt))
+			bird.vel = Vec.add(bird.vel, Vec.new(0, -cfg.lostSink * dt, 0))
+			bird.vel = Vec.clampMag(bird.vel, cfg.maxSpeed)
+			bird.pos = Vec.add(bird.pos, Vec.scale(bird.vel, dt))
+			bird.lostTime += dt
+
+			if Vec.dist(ctx.leaderPos, bird.pos) <= cfg.rallyRadius then
+				bird.mode = "returning"
+			end
+		else
+			local target = Flock.slotTarget(ctx, bird.slot)
+			local toTarget = Vec.sub(target, bird.pos)
+			local dist = Vec.len(toTarget)
+
+			local gain = if bird.mode == "returning" then cfg.steerGain * 1.9 else cfg.steerGain
+			local desiredVel = Vec.scale(Vec.norm(toTarget, ctx.courseForward), math.min(cfg.maxSpeed, dist * cfg.catchupGain))
+			local accel = Vec.scale(Vec.sub(desiredVel, bird.vel), gain)
+
+			-- Ветер слегка сносит даже в строю.
+			accel = Vec.add(accel, Vec.scale(ctx.wind, cfg.windOnBirds * 0.12))
+
+			-- Расталкивание.
+			for j = 1, #birds do
+				if j ~= i then
+					local other = birds[j]
+					local d = Vec.dist(bird.pos, other.pos)
+					if d < cfg.separationRadius and d > 0.001 then
+						local push = Vec.scale(Vec.sub(bird.pos, other.pos), (cfg.separationRadius - d) / cfg.separationRadius)
+						accel = Vec.add(accel, Vec.scale(push, cfg.separationGain))
+					end
+				end
+			end
+
+			accel = Vec.clampMag(accel, cfg.maxAccel)
+			bird.vel = Vec.add(bird.vel, Vec.scale(accel, dt))
+			bird.vel = Vec.scale(bird.vel, math.max(0, 1 - cfg.damping * dt))
+			bird.pos = Vec.add(bird.pos, Vec.scale(bird.vel, dt))
+
+			if bird.pos.y < 2.0 then
+				bird.pos.y = 2.0
+				bird.vel.y = math.abs(bird.vel.y) * 0.4
+			end
+
+			if bird.mode == "returning" then
+				if dist <= cfg.joinedDistance then
+					bird.mode = "formation"
+					table.insert(events.recovered, i)
+				end
+			elseif Vec.dist(ctx.leaderPos, bird.pos) > cfg.scatterDistance then
+				-- Отстала именно от лидера (а не от слота): слот может быть далеко по построению.
+				bird.mode = "lost"
+				bird.lostTime = 0
+				table.insert(events.scattered, i)
+			end
+		end
+	end
+
+	return events
+end
+
+--- Сколько птиц сейчас в строю (не потеряно).
+function Flock.inFormation(flock: Flock): number
+	local n = 0
+	for i = 1, #flock.birds do
+		if flock.birds[i].mode == "formation" then
+			n += 1
+		end
+	end
+	return n
+end
+
+--- Доля птиц в строю, 0..1.
+function Flock.cohesion(flock: Flock): number
+	if #flock.birds == 0 then
+		return 0
+	end
+	return Flock.inFormation(flock) / #flock.birds
+end
+
+--- Средняя дистанция от птиц до лидера.
+function Flock.averageDistance(flock: Flock, leaderPos: Vec3): number
+	if #flock.birds == 0 then
+		return 0
+	end
+	local sum = 0
+	for i = 1, #flock.birds do
+		sum += Vec.dist(flock.birds[i].pos, leaderPos)
+	end
+	return sum / #flock.birds
+end
+
+--- Собирает лидером потерянную птицу: возвращает true, если птица только что подобрана.
+function Flock.tryRally(flock: Flock, ctx: FlockContext): number?
+	for i = 1, #flock.birds do
+		local bird = flock.birds[i]
+		if bird.mode == "lost" and Vec.dist(ctx.leaderPos, bird.pos) <= Config.bird.rallyRadius then
+			bird.mode = "returning"
+			return i
+		end
+	end
+	return nil
+end
+
+return Flock
