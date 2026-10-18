@@ -69,6 +69,12 @@ step("HUD: сборка интерфейса", function()
 	HUD.showStart(true)
 	HUD.showStart(false)
 
+	-- Таймер и прогресс фаз.
+	HUD.setTime(95)
+	HUD.setPhaseProgress(0.5)
+	HUD.setPhaseProgress(1.4)
+	check(true, "HUD.setTime/setPhaseProgress отработали")
+
 	-- Стрелка к потерянной птице: направление задаётся и снимается без ошибок.
 	HUD.setStrayDirection(0.8, 120)
 	HUD.setStrayDirection(nil, nil)

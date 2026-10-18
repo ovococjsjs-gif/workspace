@@ -45,6 +45,9 @@ local endBest: TextLabel? = nil
 local endStats: TextLabel? = nil
 local reticle: Frame? = nil
 local strayArrow: TextLabel? = nil
+local timeLabel: TextLabel? = nil
+local phaseBar: Frame? = nil
+local phaseBarFill: Frame? = nil
 local shakeOffset = Vector3.zero
 
 HUD.COLOR_TEXT = Color3.fromRGB(255, 255, 255)
@@ -296,6 +299,35 @@ function HUD.build()
 	})
 	reticle.Parent = gui
 	roundCorners(reticle, 16)
+
+	-- Таймер забега (по центру сверху, под комбо).
+	timeLabel = textLabel(gui, {
+		Position = UDim2.new(0.5, -100, 0, 92),
+		Size = UDim2.fromOffset(200, 26),
+		TextSize = 18,
+		Text = "0:00",
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextTransparency = 0.35,
+	})
+
+	-- Полоска прогресса фаз (под таймером).
+	phaseBar = new("Frame", {
+		Position = UDim2.new(0.5, -150, 0, 120),
+		Size = UDim2.fromOffset(300, 6),
+		BackgroundColor3 = Color3.fromRGB(20, 24, 30),
+		BackgroundTransparency = 0.4,
+		BorderSizePixel = 0,
+	})
+	phaseBar.Parent = gui
+	roundCorners(phaseBar, 3)
+	phaseBarFill = new("Frame", {
+		Position = UDim2.fromOffset(0, 0),
+		Size = UDim2.fromScale(0, 1),
+		BackgroundColor3 = COLOR_ACCENT,
+		BorderSizePixel = 0,
+	})
+	phaseBarFill.Parent = phaseBar
+	roundCorners(phaseBarFill, 3)
 
 	-- Стрелка к ближайшей потерянной птице: показывает, куда её искать.
 	strayArrow = textLabel(gui, {
@@ -582,6 +614,23 @@ end
 function HUD.setPhase(name: string, index: number)
 	if phaseLabel then
 		phaseLabel.Text = string.format("ФАЗА %d — %s", index, name)
+	end
+end
+
+--- Таймер забега (секунды).
+function HUD.setTime(seconds: number)
+	if timeLabel then
+		local total = math.floor(math.max(seconds, 0))
+		timeLabel.Text = string.format("%d:%02d", math.floor(total / 60), total % 60)
+	end
+end
+
+--- Прогресс по фазам: ratio 0..1 — какая доля «сложности» пройдена.
+function HUD.setPhaseProgress(ratio: number)
+	if phaseBarFill then
+		TweenService:Create(phaseBarFill, TweenInfo.new(0.3), {
+			Size = UDim2.fromScale(math.clamp(ratio, 0, 1), 1),
+		}):Play()
 	end
 end
 

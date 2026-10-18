@@ -89,6 +89,8 @@ local function resetRun()
 	HUD.setHint("WASD — курс, Space/Shift — высота")
 	HUD.setDanger(0)
 	HUD.setCalm(1)
+	HUD.setTime(0)
+	HUD.setPhaseProgress(0)
 	HUD.setBoost(0, Config.leader.boostDuration + Config.leader.boostCooldown, false)
 	Input.consumeBoost() -- сбросить клик, сделанный в меню
 	panicWarned = false
@@ -300,6 +302,8 @@ local function boot()
 			)
 			local panic = game.flock.panic
 			HUD.setCalm(1 - panic)
+			HUD.setTime(game.time)
+			HUD.setPhaseProgress((game.phaseIndex - 1) / 3)
 			updateStrayArrow(game)
 			if panic > 0.55 and not panicWarned then
 				panicWarned = true
