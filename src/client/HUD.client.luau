@@ -45,6 +45,8 @@ local windLabel: TextLabel? = nil
 local phaseBar: Frame? = nil
 local phaseBarFill: Frame? = nil
 local shakeOffset = Vector3.zero
+local touchBase: Frame? = nil
+local touchKnob: Frame? = nil
 
 HUD.COLOR_TEXT = Color3.fromRGB(255, 255, 255)
 HUD.COLOR_ACCENT = Color3.fromRGB(255, 196, 84)
@@ -445,6 +447,32 @@ function HUD.build()
 	againButton.Parent = endScreen
 	roundCorners(againButton, 18)
 	HUD.againButton = againButton
+
+	-- Виртуальный стик для сенсорного управления (виден только при касании).
+	touchBase = new("Frame", {
+		Name = "TouchStick",
+		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+		BackgroundTransparency = 0.82,
+		BorderSizePixel = 0,
+		Size = UDim2.fromOffset(120, 120),
+		Position = UDim2.fromOffset(0, 0),
+		Visible = false,
+		ZIndex = 8,
+	})
+	roundCorners(touchBase, 60)
+	touchBase.Parent = gui
+	touchKnob = new("Frame", {
+		Name = "TouchKnob",
+		BackgroundColor3 = Color3.fromRGB(255, 196, 84),
+		BackgroundTransparency = 0.25,
+		BorderSizePixel = 0,
+		Size = UDim2.fromOffset(52, 52),
+		Position = UDim2.fromOffset(0, 0),
+		Visible = false,
+		ZIndex = 9,
+	})
+	roundCorners(touchKnob, 26)
+	touchKnob.Parent = gui
 end
 
 --- Всплывающее сообщение по центру экрана.
@@ -654,6 +682,22 @@ function HUD.setMercy(active: boolean, left: number)
 end
 
 --- Таймер забега (секунды).
+--- Виртуальный стик (сенсорное управление): активен только пока палец на экране.
+function HUD.setTouchStick(active: boolean, originX: number, originY: number, curX: number, curY: number)
+	if not touchBase or not touchKnob then
+		return
+	end
+	touchBase.Visible = active
+	touchKnob.Visible = active
+	if not active then
+		return
+	end
+	-- Координаты касания — в экранной системе; верхняя панель Roblox может
+	-- сдвинуть стик на несколько пикселей, это некритично.
+	touchBase.Position = UDim2.fromOffset(originX - 60, originY - 60)
+	touchKnob.Position = UDim2.fromOffset(curX - 26, curY - 26)
+end
+
 function HUD.setTime(seconds: number)
 	if timeLabel then
 		local total = math.floor(math.max(seconds, 0))

@@ -351,6 +351,8 @@ local function boot()
 				Audio.perfect(5)
 			end
 			HUD.setMercy(game.mercyTime > 0, game.mercyTime)
+			local touchActive, touchOx, touchOy, touchCx, touchCy = Input.getTouchStick()
+			HUD.setTouchStick(touchActive, touchOx, touchOy, touchCx, touchCy)
 			local wind = Game.windVector(game)
 			local side = 0
 			if camera then

@@ -241,6 +241,7 @@ step("Main: запуск клиента и кадры игрового цикл�
 
 	-- Ввод: зажимаем клавиши и отпускаем.
 	local uis = services.UserInputService
+	local Input = require("./Input")
 	for _, fn in ipairs(uis.InputBegan.__signals) do
 		fn({ KeyCode = Mock.env.Enum.KeyCode.W, UserInputType = "Keyboard" }, false)
 	end
@@ -271,6 +272,35 @@ step("Main: запуск клиента и кадры игрового цикл�
 		boostActive = clientState.game.boostTime > 0 or clientState.game.boostCooldown > 0
 	end
 	check(boostActive, "ЛКМ запустил рывок в симуляции")
+
+	-- Сенсор: касание в левой половине экрана даёт виртуальный стик.
+	local touchVec = Mock.env.Vector2.new(300, 700)
+	for _, fn in ipairs(uis.InputBegan.__signals) do
+		fn({ UserInputType = Mock.env.Enum.UserInputType.Touch, Position = touchVec }, false)
+	end
+	for _, fn in ipairs(uis.InputMoved.__signals) do
+		fn({ UserInputType = Mock.env.Enum.UserInputType.Touch, Position = Mock.env.Vector2.new(360, 660) }, false)
+	end
+	for _, fn in ipairs(heartbeat.__signals) do
+		fn(1 / 60)
+	end
+	local stickActive, stickOx, stickOy, stickCx, stickCy = Input.getTouchStick()
+	check(stickActive, "сенсор включил виртуальный стик")
+	check(
+		math.abs(stickCx - stickOx) > 1 and math.abs(stickCy - stickOy) > 1,
+		"стик отслеживает движение пальца"
+	)
+	local tx, ty, tz = Input.getAxes()
+	check(tz > 0.5 and math.abs(tx) > 0.1, string.format("оси от стика: x=%s y=%s z=%s", tostring(tx), tostring(ty), tostring(tz)))
+	-- Палец оторвался — стик выключается.
+	for _, fn in ipairs(uis.InputEnded.__signals) do
+		fn({ UserInputType = Mock.env.Enum.UserInputType.Touch, Position = touchVec }, false)
+	end
+	for _, fn in ipairs(heartbeat.__signals) do
+		fn(1 / 60)
+	end
+	local stickAfter = Input.getTouchStick()
+	check(stickAfter == false, "после отпускания стик выключен")
 
 	-- Потеря фокуса.
 	for _, fn in ipairs(uis.WindowFocusReleased.__signals) do

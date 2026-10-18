@@ -58,6 +58,29 @@ function V3Type.__eq(a, b)
 	return a.x == b.x and a.y == b.y and a.z == b.z
 end
 
+--------------------------------------------------------------------------- V2Type
+
+local V2Type = {}
+V2Type.__index = V2Type
+V2Type.__type = "V2Type"
+
+function V2Type.new(x, y)
+	x, y = x or 0, y or 0
+	return setmetatable({
+		x = x,
+		y = y,
+		X = x,
+		Y = y,
+		Magnitude = math.sqrt(x * x + y * y),
+	}, V2Type)
+end
+
+V2Type.zero = V2Type.new(0, 0)
+
+function V2Type.__eq(a, b)
+	return a.x == b.x and a.y == b.y
+end
+
 --------------------------------------------------------------------------- CFType
 
 local CFType = {}
@@ -185,7 +208,7 @@ local EnumType = setmetatable({}, {
 EnumType.PartType = makeEnum({ Block = "Block", Ball = "Ball", Cylinder = "Cylinder" })
 EnumType.Material = makeEnum({ Plastic = "Plastic", Neon = "Neon", Grass = "Grass", Slate = "Slate", SmoothPlastic = "SmoothPlastic" })
 EnumType.Font = makeEnum({ GothamBold = "GothamBold", Gotham = "Gotham" })
-EnumType.UserInputType = makeEnum({ MouseButton1 = "MouseButton1", Keyboard = "Keyboard" })
+EnumType.UserInputType = makeEnum({ MouseButton1 = "MouseButton1", Keyboard = "Keyboard", Touch = "Touch" })
 -- KeyCode: значения-строки, чтобы ввод можно было проверять сравнением
 -- (как это делает Input.client.luau: key == Enum.KeyCode.W).
 EnumType.KeyCode = makeEnum({
@@ -430,7 +453,11 @@ local function buildServices(shared)
 	rawset(replicatedStorage, "__special", { FlockShared = shared, FlockRemotes = remotes })
 
 	local workspaceService = makeInstance("Workspace", { Name = "Workspace" })
-	workspaceService.CurrentCamera = makeInstance("Camera", { Name = "Camera" })
+	workspaceService.CurrentCamera = makeInstance("Camera", {
+		Name = "Camera",
+		ViewportSize = V2Type.new(1920, 1080),
+		FieldOfView = 78,
+	})
 
 	local lighting = makeInstance("Lighting", { Name = "Lighting" })
 
@@ -450,7 +477,10 @@ local function buildServices(shared)
 	local userInputService = makeInstance("UserInputService", { Name = "UserInputService" })
 	userInputService.InputBegan = signal("InputBegan")
 	userInputService.InputEnded = signal("InputEnded")
+	userInputService.InputMoved = signal("InputMoved")
 	userInputService.WindowFocusReleased = signal("WindowFocusReleased")
+	userInputService.TouchEnabled = false
+	userInputService.MouseEnabled = true
 
 	local dataStoreService = makeInstance("DataStoreService", { Name = "DataStoreService" })
 	dataStoreService.GetDataStore = function()
@@ -499,6 +529,7 @@ function Mock.buildEnv(shared)
 			new = new,
 		},
 		Vector3 = V3Type,
+		Vector2 = V2Type,
 		CFrame = CFType,
 		UDim2 = U2Type,
 		UDim = UDim,
