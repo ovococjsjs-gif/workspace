@@ -287,8 +287,35 @@ instanceMethods.Destroy = function(self)
 	end
 end
 
+-- Иерархия классов (как в Roblox): Part — это BasePart, TextLabel — GuiObject и т.д.
+local CLASS_PARENTS = {
+	Part = "BasePart",
+	TrussPart = "BasePart",
+	WedgePart = "BasePart",
+	MeshPart = "BasePart",
+	TextLabel = "GuiObject",
+	TextButton = "GuiObject",
+	TextBox = "GuiObject",
+	ImageLabel = "GuiObject",
+	ImageButton = "GuiObject",
+	ScrollingFrame = "GuiObject",
+	Frame = "GuiObject",
+	ViewportFrame = "GuiObject",
+}
+
+local function isClass(className: string, wanted: string): boolean
+	local current = className
+	while current do
+		if current == wanted then
+			return true
+		end
+		current = CLASS_PARENTS[current]
+	end
+	return false
+end
+
 instanceMethods.IsA = function(self, className)
-	return rawget(self, "__class") == className
+	return isClass(rawget(self, "__class"), className)
 end
 
 instanceMethods.FindFirstChild = function(self, name)
@@ -490,6 +517,11 @@ function Mock.buildEnv(shared)
 				end
 			end,
 			spawn = function(fn, ...)
+				if type(fn) == "function" then
+					fn(...)
+				end
+			end,
+			defer = function(fn, ...)
 				if type(fn) == "function" then
 					fn(...)
 				end

@@ -264,6 +264,20 @@ step("Main: запуск клиента и кадры игрового цикл�
 		fn(1 / 60)
 	end
 	check(true, "потеря фокуса обработана без ошибок")
+
+	-- Появление персонажа: клиент должен спрятать стандартное тело.
+	local character = Mock.env.Instance.new("Model")
+	local body = Mock.env.Instance.new("Part")
+	body.Name = "Torso"
+	body.Transparency = 0
+	body.Parent = character
+	for _, fn in ipairs(services.Players.LocalPlayer.CharacterAdded.__signals) do
+		fn(character)
+	end
+	for _, fn in ipairs(heartbeat.__signals) do
+		fn(1 / 60)
+	end
+	check(body.Transparency == 1, "стандартный персонаж спрятан (Transparency=" .. tostring(body.Transparency) .. ")")
 end)
 
 --------------------------------------------------------------------------- сервер
