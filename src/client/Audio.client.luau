@@ -14,6 +14,8 @@ local SOUND = {
 	ui = "rbxasset://sounds/button.wav",
 	--- "Ух" — крик стаи, когда она паникует.
 	panic = "rbxasset://sounds/uuhhh.mp3",
+	--- Свист ветра на рывке.
+	boost = "rbxasset://sounds/action_swim.wav",
 }
 
 local function play(soundId: string, volume: number, pitch: number?)
@@ -59,6 +61,10 @@ end
 --- Крик паники: чем выше уровень, тем ниже тон.
 function Audio.panic(level: number)
 	play(SOUND.panic, 0.35, math.clamp(1.4 - level * 0.6, 0.6, 1.4))
+end
+
+function Audio.boost()
+	play(SOUND.boost, 0.35, 1.35)
 end
 
 function Audio.ui()

@@ -26,6 +26,8 @@ local leaderHalo: Part? = nil
 local tailPart: Part? = nil
 local birdBodies: { Part } = {}
 local birdWings: { Part } = {}
+--- Маячки над потерянными птицами: игрок должен видеть, кого искать.
+local birdBeacons: { Part } = {}
 local ringVisuals: { [number]: RingVisual } = {}
 
 local COLOR_LEADER = Color3.fromRGB(255, 176, 64)
@@ -116,8 +118,19 @@ function Views.build(flockSize: number)
 	for i = 1, flockSize do
 		local body = makePart("Bird" .. i, Vector3.new(1.7, 1.4, 2.4), COLOR_BIRD, Enum.Material.SmoothPlastic, Enum.PartType.Ball)
 		local wing = makePart("Wing" .. i, Vector3.new(2.6, 0.22, 1.1), COLOR_BIRD, Enum.Material.SmoothPlastic)
+		local beacon = makePart(
+			"Beacon" .. i,
+			Vector3.new(1.1, 1.1, 1.1),
+			COLOR_BIRD_LOST,
+			Enum.Material.Neon,
+			Enum.PartType.Ball,
+			0.25
+		)
+		beacon.LightEmission = 1
+		beacon.Transparency = 1
 		table.insert(birdBodies, body)
 		table.insert(birdWings, wing)
+		table.insert(birdBeacons, beacon)
 	end
 end
 
@@ -125,7 +138,13 @@ local function toVector(v: Vec.Vec3): Vector3
 	return Vector3.new(v.x, v.y, v.z)
 end
 
-function Views.updateLeader(leaderPos: Vec.Vec3, leaderVel: Vec.Vec3, courseForward: Vec.Vec3, panic: number?)
+function Views.updateLeader(
+	leaderPos: Vec.Vec3,
+	leaderVel: Vec.Vec3,
+	courseForward: Vec.Vec3,
+	panic: number?,
+	boost: boolean?
+)
 	if not leaderPart or not leaderHalo or not tailPart then
 		return
 	end
@@ -141,6 +160,17 @@ function Views.updateLeader(leaderPos: Vec.Vec3, leaderVel: Vec.Vec3, courseForw
 
 	local tailPos = Vec.add(leaderPos, Vec.scale(forward, -3.2))
 	tailPart.Position = toVector(tailPos)
+
+	-- Во время рывка след вожака становится золотым.
+	local trail = leaderPart and leaderPart:FindFirstChildOfClass("Trail")
+	if trail then
+		local hot = boost == true
+		trail.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, if hot then Color3.fromRGB(255, 236, 170) else Color3.fromRGB(255, 206, 120)),
+			ColorSequenceKeypoint.new(1, if hot then Color3.fromRGB(255, 236, 170) else Color3.fromRGB(255, 206, 120)),
+		})
+		trail.LightEmission = if hot then 1.0 else 0.5
+	end
 
 	-- Нимб краснеет: стая нервничает из-за вожака.
 	local level = math.clamp(panic or 0, 0, 1)
@@ -171,16 +201,33 @@ function Views.updateBirds(flock: Flock.Flock)
 			local bank = math.clamp(speed / 60, 0, 1) * 0.25
 			wing.CFrame = cf * CFrame.Angles(0, 0, flap) * CFrame.new(0, 0.15 * math.cos(bird.flap), 0)
 
+			local beacon = birdBeacons[i]
 			if bird.mode == "lost" then
 				local blink = (math.floor(bird.lostTime * 6) % 2) == 0
 				body.Color = if blink then COLOR_BIRD_LOST else COLOR_BIRD
 				wing.Color = body.Color
+				if beacon then
+					-- Пульсирующий маячок над потерянной птицей.
+					local pulse = 1 + math.sin(bird.lostTime * 6) * 0.35
+					beacon.Position = toVector(Vec.add(bird.pos, Vec.new(0, 7, 0)))
+					beacon.Size = Vector3.new(1.6, 1.6, 1.6) * pulse
+					beacon.Transparency = 0.15
+				end
 			elseif bird.mode == "returning" then
 				body.Color = COLOR_BIRD_BACK
 				wing.Color = COLOR_BIRD_BACK
+				if beacon then
+					beacon.Position = toVector(Vec.add(bird.pos, Vec.new(0, 7, 0)))
+					beacon.Size = Vector3.new(1.4, 1.4, 1.4)
+					beacon.Color = COLOR_BIRD_BACK
+					beacon.Transparency = 0.35
+				end
 			else
 				body.Color = COLOR_BIRD
 				wing.Color = COLOR_BIRD
+				if beacon then
+					beacon.Transparency = 1
+				end
 			end
 		end
 	end

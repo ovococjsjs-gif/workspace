@@ -89,6 +89,7 @@ local function resetRun()
 	HUD.setHint("WASD — курс, Space/Shift — высота")
 	HUD.setDanger(0)
 	HUD.setCalm(1)
+	HUD.setBoost(0, Config.leader.boostDuration + Config.leader.boostCooldown, false)
 	panicWarned = false
 	HUD.setRingTimer(nil, nil)
 	Views.reset()
@@ -153,6 +154,11 @@ local function handleEvent(event: Game.GameEvent)
 			Audio.fail()
 		end
 		HUD.setScore(state.game and state.game.score.score or 0)
+	end
+
+	if event.boost then
+		HUD.toast("РЫВОК!", HUD.COLOR_ACCENT)
+		Audio.boost()
 	end
 
 	if event.gameOver then
@@ -239,11 +245,16 @@ local function boot()
 		local game = state.game
 		if state.mode == "playing" and game then
 			local ax, ay, az = Input.getAxes()
-			local events = Game.step(game, step, { x = ax, y = ay, z = az })
+			local events = Game.step(game, step, { x = ax, y = ay, z = az, boost = Input.consumeBoost() })
 			for _, event in events do
 				handleEvent(event)
 			end
 			HUD.setFlock(Game.flockAlive(game), Game.flockTotal(game))
+			HUD.setBoost(
+				game.boostCooldown,
+				Config.leader.boostDuration + Config.leader.boostCooldown,
+				game.boostTime > 0
+			)
 			local panic = game.flock.panic
 			HUD.setCalm(1 - panic)
 			if panic > 0.55 and not panicWarned then
@@ -262,7 +273,13 @@ local function boot()
 		if state.game then
 			local cp = Course.pointAt(state.game.leaderPos.z)
 			World.update(state.game.leaderPos)
-			Views.updateLeader(state.game.leaderPos, state.game.leaderVel, cp.tangent, state.game.flock.panic)
+			Views.updateLeader(
+				state.game.leaderPos,
+				state.game.leaderVel,
+				cp.tangent,
+				state.game.flock.panic,
+				state.game.boostTime > 0
+			)
 			Views.updateBirds(state.game.flock)
 			Views.updateRings(state.game.rings, step, state.game.time)
 		end

@@ -33,6 +33,8 @@ local function setKey(key: Enum.KeyCode, down: boolean)
 	end
 end
 
+local boostRequested = false
+
 Input.enabled = true
 
 function Input.start()
@@ -45,6 +47,16 @@ function Input.start()
 	UserInputService.InputEnded:Connect(function(input: InputObject, _gameProcessed: boolean)
 		setKey(input.KeyCode, false)
 	end)
+	-- ЛКМ — «рывок» (edge-triggered: одно нажатие = один рывок).
+	UserInputService.InputBegan:Connect(function(input: InputObject, gameProcessed: boolean)
+		if gameProcessed then
+			return
+		end
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			boostRequested = true
+		end
+	end)
+
 	-- На случай потери фокуса не залипаем нажатыми клавишами.
 	UserInputService.WindowFocusReleased:Connect(function()
 		keys.up = false
@@ -89,6 +101,15 @@ function Input.getAxes(): (number, number, number)
 		z /= mag
 	end
 	return x, y, z
+end
+
+--- Забирает запрос на «рывок» (одно нажатие ЛКМ = один рывок).
+function Input.consumeBoost(): boolean
+	if not boostRequested then
+		return false
+	end
+	boostRequested = false
+	return true
 end
 
 --- Любая из клавиш "вперёд" нажата (для автопилота/подсказки).

@@ -145,7 +145,16 @@ function Flock.step(flock: Flock, dt: number, ctx: FlockContext): FlockEvents
 			end
 			bird.lostTime += dt
 
-			if Vec.dist(ctx.leaderPos, bird.pos) <= cfg.rallyRadius then
+			-- Магнит: если вожак подошёл близко, птица сама тянется к нему.
+			-- Так «подобрать» приятно и не нужно ловить её вручную.
+			local toLeader = Vec.sub(ctx.leaderPos, bird.pos)
+			local leaderDist = Vec.len(toLeader)
+			if leaderDist < cfg.magnetRadius then
+				local pull = (1 - leaderDist / cfg.magnetRadius) * cfg.magnetStrength
+				bird.vel = Vec.add(bird.vel, Vec.scale(Vec.norm(toLeader, ctx.courseForward), pull * dt))
+			end
+
+			if leaderDist <= cfg.rallyRadius then
 				bird.mode = "returning"
 			end
 		else

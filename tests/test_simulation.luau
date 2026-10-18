@@ -11,6 +11,7 @@
 local T = require(script.Parent.Framework)
 local Vec = require(script.Parent.Vec)
 local Game = require(script.Parent.Game)
+local Config = require(script.Parent.Config)
 local Flock = require(script.Parent.Flock)
 
 local DT = 1 / 60
@@ -135,6 +136,57 @@ T.test("агрессивный пилот (метание в стороны) т�
 	end
 	T.ok(over, "условие проигрыша должно срабатывать, когда стая рассыпалась")
 	T.eq(game.mode, "over")
+end)
+
+
+T.test("рывок: ускоряет вожака, но стая начинает отваливаться", function()
+	local game = Game.new(11)
+	-- Разгоняемся на обычном газу.
+	for _ = 1, 180 do
+		Game.step(game, DT, { x = 0, y = 0, z = 1 })
+	end
+	local normalSpeed = Vec.len(game.leaderVel)
+	local normalLag = Flock.averageLag(game.flock, game.leaderPos)
+
+	-- Рывок: скорость должна вырасти заметно выше обычного максимума.
+	local boosted = false
+	local boostSpeed = 0
+	for _ = 1, 60 do
+		local events = Game.step(game, DT, { x = 0, y = 0, z = 1, boost = true })
+		for _, event in events do
+			if event.boost then
+				boosted = true
+			end
+		end
+		if game.boostTime > 0 then
+			boostSpeed = math.max(boostSpeed, Vec.len(game.leaderVel))
+		end
+	end
+	T.ok(boosted, "событие рывка должно приходить в игровой цикл")
+	T.ok(boostSpeed > normalSpeed + 5, "рывок должен ускорять вожака (" .. tostring(normalSpeed) .. " -> " .. tostring(boostSpeed) .. ")")
+	T.ok(boostSpeed > normalSpeed + 5, "рывок должен ускорять вожака (" .. tostring(normalSpeed) .. " -> " .. tostring(boostSpeed) .. ")")
+	T.ok(boostSpeed <= Config.leader.boostSpeed + 0.01, "скорость не должна превышать лимит рывка")
+
+	-- Пока идёт рывок, стая отстаёт сильнее.
+	local boostLag = Flock.averageLag(game.flock, game.leaderPos)
+	T.ok(boostLag > normalLag, "стая должна отставать во время рывка (" .. tostring(normalLag) .. " -> " .. tostring(boostLag) .. ")")
+end)
+
+T.test("рывок: перезарядка — второй запрос игнорируется", function()
+	local game = Game.new(12)
+	local starts = 0
+	-- Держим запрос постоянно: сработать должен только первый.
+	for _ = 1, 60 * 4 do
+		local events = Game.step(game, DT, { x = 0, y = 0, z = 1, boost = true })
+		for _, event in events do
+			if event.boost then
+				starts += 1
+			end
+		end
+	end
+	T.eq(starts, 1, "за 4 секунды рывок должен сработать ровно один раз (перезарядка)")
+	T.ok(game.boostCooldown > 0, "после рывка должна идти перезарядка")
+	T.ok(game.boostCooldown <= Config.leader.boostDuration + Config.leader.boostCooldown, "перезарядка не должна быть длиннее суммы")
 end)
 
 T.test("окно кольца: после пересечения лидером стая должна успеть", function()

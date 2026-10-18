@@ -18,7 +18,13 @@ local Obstacles = require(script.Parent.Obstacles)
 
 export type Vec3 = Vec.Vec3
 
-export type Input = { x: number, y: number, z: number }
+export type Input = {
+	x: number,
+	y: number,
+	z: number,
+	--- Запрошен ли «рывок» (ускорение вожака) в этом кадре.
+	boost: boolean?,
+}
 
 export type RingOutcome = {
 	id: number,
@@ -35,6 +41,8 @@ export type GameEvent = {
 	phaseIndex: number?,
 	phaseName: string?,
 	gameOver: boolean,
+	--- Вожак пошёл на «рывок».
+	boost: boolean,
 }
 
 export type Game = {
@@ -48,6 +56,12 @@ export type Game = {
 	agitation: number,
 	--- Предыдущий ввод игрока — для оценки резкости управления.
 	prevInput: Input,
+	--- Осталось времени активного «рывка», сек.
+	boostTime: number,
+	--- Осталось до перезарядки «рывка», сек.
+	boostCooldown: number,
+	--- Был ли рывок активирован в этом кадре (для события/звука).
+	boostStarted: boolean,
 	flock: Flock.Flock,
 	rings: Rings.RingWorld,
 	obstacles: Obstacles.ObstacleWorld,
@@ -72,6 +86,9 @@ function Game.new(seed: number?): Game
 		smoothDir = Vec.new(0, 0, 1),
 		agitation = 0,
 		prevInput = { x = 0, y = 0, z = 0 },
+		boostTime = 0,
+		boostCooldown = 0,
+		boostStarted = false,
 		flock = Flock.new(Config.flockSize, seed or 20261018),
 		rings = Rings.new(seed and (seed + 1) or 424242),
 		obstacles = Obstacles.new(seed and (seed + 2) or 777),
@@ -94,6 +111,9 @@ function Game.reset(game: Game): ()
 	game.smoothDir = Vec.new(0, 0, 1)
 	game.agitation = 0
 	game.prevInput = { x = 0, y = 0, z = 0 }
+	game.boostTime = 0
+	game.boostCooldown = 0
+	game.boostStarted = false
 	game.flock = Flock.new(Config.flockSize, 20261018)
 	game.rings = Rings.new(424242)
 	game.obstacles = Obstacles.new(777)
@@ -124,9 +144,26 @@ end
 local function updateLeader(game: Game, dt: number, wind: Vec3, input: Input): ()
 	local cp = Course.pointAt(game.leaderPos.z)
 
+	-- «Рывок»: короткое ускорение вожака. Быстрее едешь — больше очков за
+	-- расстояние, но стая (60 ед/с) не успевает и начинает отваливаться.
+	if game.boostTime > 0 then
+		game.boostTime = math.max(0, game.boostTime - dt)
+	end
+	if game.boostCooldown > 0 then
+		game.boostCooldown = math.max(0, game.boostCooldown - dt)
+	end
+	game.boostStarted = false
+	if input.boost and game.boostCooldown <= 0 and game.boostTime <= 0 then
+		game.boostTime = Config.leader.boostDuration
+		game.boostCooldown = Config.leader.boostDuration + Config.leader.boostCooldown
+		game.boostStarted = true
+	end
+	local boosting = game.boostTime > 0
+	local maxSpeed = if boosting then Config.leader.boostSpeed else Config.leader.maxSpeed
+
 	-- Модель полёта: тяга по направлению ввода + сопротивление воздуха.
 	-- Так стрейф не гасит движение вперёд, а отпускание газа даёт плавное торможение.
-	local thrust = Config.leader.thrust
+	local thrust = Config.leader.thrust * (if boosting then Config.leader.boostThrust else 1.0)
 	local accel = Vec.zero()
 	accel = Vec.add(accel, Vec.scale(cp.tangent, input.z * thrust))
 	accel = Vec.add(accel, Vec.scale(cp.right, input.x * thrust * Config.leader.strafeFactor))
@@ -135,7 +172,7 @@ local function updateLeader(game: Game, dt: number, wind: Vec3, input: Input): (
 
 	game.leaderVel = Vec.add(game.leaderVel, Vec.scale(accel, dt))
 	game.leaderVel = Vec.scale(game.leaderVel, math.max(0, 1 - Config.leader.drag * dt))
-	game.leaderVel = Vec.clampMag(game.leaderVel, Config.leader.maxSpeed)
+	game.leaderVel = Vec.clampMag(game.leaderVel, maxSpeed)
 	game.leaderPos = Vec.add(game.leaderPos, Vec.scale(game.leaderVel, dt))
 
 	-- Мягко держим лидера в коридоре трассы (вдоль «правой» оси курса).
@@ -179,7 +216,12 @@ function Game.step(game: Game, dt: number, input: Input): { GameEvent }
 		phaseIndex = nil,
 		phaseName = nil,
 		gameOver = false,
+		boost = false,
 	}
+	if game.boostStarted then
+		event.boost = true
+	end
+
 	if phase.index ~= game.phaseIndex then
 		game.phaseIndex = phase.index
 		event.phaseIndex = phase.index

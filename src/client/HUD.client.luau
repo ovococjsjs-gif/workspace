@@ -26,6 +26,9 @@ local flockBarFill: Frame? = nil
 local calmLabel: TextLabel? = nil
 local calmBar: Frame? = nil
 local calmBarFill: Frame? = nil
+local boostLabel: TextLabel? = nil
+local boostBar: Frame? = nil
+local boostBarFill: Frame? = nil
 local phaseLabel: TextLabel? = nil
 local hintLabel: TextLabel? = nil
 local toastLabel: TextLabel? = nil
@@ -199,6 +202,33 @@ function HUD.build()
 	})
 	calmBarFill.Parent = calmBar
 	roundCorners(calmBarFill, 4)
+
+	-- Рывок: перезарядка (под шкалой спокойствия).
+	boostLabel = textLabel(gui, {
+		Position = UDim2.new(1, -268, 0, 108),
+		Size = UDim2.fromOffset(240, 18),
+		TextSize = 13,
+		Text = "РЫВОК (ЛКМ)",
+		TextXAlignment = Enum.TextXAlignment.Right,
+		TextColor3 = COLOR_ACCENT,
+	})
+	boostBar = new("Frame", {
+		Position = UDim2.new(1, -268, 0, 128),
+		Size = UDim2.fromOffset(240, 8),
+		BackgroundColor3 = Color3.fromRGB(20, 24, 30),
+		BackgroundTransparency = 0.35,
+		BorderSizePixel = 0,
+	})
+	boostBar.Parent = gui
+	roundCorners(boostBar, 4)
+	boostBarFill = new("Frame", {
+		Position = UDim2.fromOffset(0, 0),
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = COLOR_ACCENT,
+		BorderSizePixel = 0,
+	})
+	boostBarFill.Parent = boostBar
+	roundCorners(boostBarFill, 4)
 
 	-- Фаза + подсказка (снизу).
 	phaseLabel = textLabel(gui, {
@@ -476,6 +506,29 @@ function HUD.setCalm(calm: number)
 		else
 			calmLabel.Text = "ПАНИКА СТАИ!"
 			calmLabel.TextColor3 = COLOR_BAD
+		end
+	end
+end
+
+--- Рывок: cooldown — остаток перезарядки, total — полная перезарядка.
+function HUD.setBoost(cooldown: number, total: number, active: boolean)
+	if boostBarFill then
+		local ratio = if total > 0 then math.clamp(1 - cooldown / total, 0, 1) else 1
+		TweenService:Create(boostBarFill, TweenInfo.new(0.1), {
+			Size = UDim2.fromScale(ratio, 1),
+			BackgroundColor3 = if active then COLOR_GOOD else COLOR_ACCENT,
+		}):Play()
+	end
+	if boostLabel then
+		if active then
+			boostLabel.Text = "РЫВОК!"
+			boostLabel.TextColor3 = COLOR_GOOD
+		elseif cooldown > 0.05 then
+			boostLabel.Text = string.format("РЫВОК (ЛКМ) %.1f", cooldown)
+			boostLabel.TextColor3 = COLOR_ACCENT
+		else
+			boostLabel.Text = "РЫВОК (ЛКМ) ГОТОВ"
+			boostLabel.TextColor3 = COLOR_GOOD
 		end
 	end
 end
