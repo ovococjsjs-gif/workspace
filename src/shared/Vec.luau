@@ -66,10 +66,11 @@ end
 
 --- Нормирует вектор. Если длина ~ 0, возвращает `fallback`.
 function Vec.norm(a: Vec3, fallback: Vec3?): Vec3
-	local l = Vec.len(a)
-	if l < 1e-6 then
+	local lSq = Vec.lenSq(a)
+	if lSq < 1e-12 then
 		return fallback or Vec.zero()
 	end
+	local l = math.sqrt(lSq)
 	return { x = a.x / l, y = a.y / l, z = a.z / l }
 end
 
@@ -94,12 +95,6 @@ end
 function Vec.projectOnPlane(a: Vec3, n: Vec3): Vec3
 	local d = Vec.dot(a, n)
 	return { x = a.x - n.x * d, y = a.y - n.y * d, z = a.z - n.z * d }
-end
-
-function Vec.copyTo(from: Vec3, to: Vec3): ()
-	to.x = from.x
-	to.y = from.y
-	to.z = from.z
 end
 
 return Vec

@@ -177,13 +177,16 @@ function Flock.step(flock: Flock, dt: number, ctx: FlockContext): FlockEvents
 			end
 			accel = Vec.add(accel, Vec.scale(ctx.wind, cfg.windOnBirds * 0.9 * gust))
 
-				-- Расталкивание.
+				-- Расталкивание (квадрат расстояния — без лишнего sqrt на каждую пару).
+			local sepR = cfg.separationRadius
+			local sepR2 = sepR * sepR
 			for j = 1, #birds do
 				if j ~= i then
 					local other = birds[j]
-					local d = Vec.dist(bird.pos, other.pos)
-					if d < cfg.separationRadius and d > 0.001 then
-						local push = Vec.scale(Vec.sub(bird.pos, other.pos), (cfg.separationRadius - d) / cfg.separationRadius)
+					local d2 = Vec.distSq(bird.pos, other.pos)
+					if d2 < sepR2 and d2 > 1e-6 then
+						local d = math.sqrt(d2)
+						local push = Vec.scale(Vec.sub(bird.pos, other.pos), (sepR - d) / sepR)
 						accel = Vec.add(accel, Vec.scale(push, cfg.separationGain))
 					end
 				end
