@@ -78,6 +78,8 @@ local round = {
 }
 --- Участники текущего раунда.
 local racers: { [Player]: Race.Entry } = {}
+--- Когда игрок начал забег (серверное время) — для честной проверки счёта.
+local racerStart: { [Player]: number } = {}
 
 local function serverNow(): number
 	local ok, value = pcall(function()
@@ -105,6 +107,11 @@ local function ensureRacer(player: Player): Race.Entry
 		racers[player] = entry
 	end
 	return entry
+end
+
+--- Отмечает, что игрок начал забег (для проверки правдоподобности счёта).
+local function markStart(player: Player)
+	racerStart[player] = serverNow()
 end
 
 --- Текущий рейтинг (отсортированный, с местами).
@@ -144,6 +151,7 @@ end
 
 requestRoundRemote.OnServerEvent:Connect(function(player: Player)
 	ensureRacer(player)
+	markStart(player)
 	if round.state == "idle" or round.state == "finished" then
 		startRound()
 	elseif round.state == "countdown" then
@@ -172,7 +180,11 @@ progressRemote.OnServerEvent:Connect(function(
 		return
 	end
 	-- Проверка правдоподобности: слишком много очков за слишком короткое время — отбросить.
-	if not Score.isPlausible(score, math.max(elapsed, 1)) then
+	-- Длительность считает сервер: клиентское время берём только как нижнюю оценку.
+	local started = racerStart[player] or serverNow()
+	local serverElapsed = serverNow() - started
+	local realElapsed = math.max(elapsed, serverElapsed)
+	if not Score.isPlausible(score, math.max(realElapsed, 1)) then
 		return
 	end
 	entry.score = score
@@ -252,6 +264,7 @@ Players.PlayerRemoving:Connect(function(player: Player)
 	bestScores[player] = nil
 	sessionStart[player] = nil
 	racers[player] = nil
+	racerStart[player] = nil
 end)
 
 requestRemote.OnServerEvent:Connect(function(player: Player)
