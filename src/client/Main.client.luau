@@ -712,8 +712,11 @@ local function boot()
 				state.progressTimer = 0
 				if progressRemote then
 					pcall(function()
+						local reportScore = if game.mode == "over"
+							then Score.finalScore(game.score, Game.flockAlive(game), Game.flockTotal(game))
+							else game.score.score
 						progressRemote:FireServer(
-							game.score.score,
+							reportScore,
 							game.leaderPos.z,
 							Game.flockAlive(game),
 							game.mode == "over",

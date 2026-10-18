@@ -292,11 +292,11 @@ progressRemote.OnServerEvent:Connect(function(
 		return
 	end
 	-- Проверка правдоподобности: слишком много очков за слишком короткое время — отбросить.
-	-- Длительность считает сервер: клиентское время берём только как нижнюю оценку.
+	-- Длительность считает только сервер. Не берём max(clientElapsed, serverElapsed):
+	-- иначе читер мог бы прислать elapsed=1e9 и обойти ограничение очков/сек.
 	local started = racerStart[player] or serverNow()
-	local serverElapsed = serverNow() - started
-	local realElapsed = math.max(elapsed, serverElapsed)
-	if not Score.isPlausible(score, math.max(realElapsed, 1)) then
+	local serverElapsed = math.max(0, serverNow() - started)
+	if not Score.isPlausible(score, math.max(serverElapsed, 1)) then
 		return
 	end
 	entry.score = score
@@ -391,14 +391,16 @@ submitRemote.OnServerEvent:Connect(function(player: Player, score: any, elapsed:
 	if typeof(score) ~= "number" or typeof(elapsed) ~= "number" then
 		return
 	end
-	-- Длительность забега считает сервер: клиентское значение берём только как
-	-- нижнюю оценку (если игрок играл дольше, чем был в сервере — берём серверное).
-	local started = sessionStart[player] or os.clock()
-	local serverElapsed = os.clock() - started
-	local realElapsed = math.max(elapsed, serverElapsed)
+	-- Длительность забега считает только сервер. Для участника гонки используем
+	-- время с запроса раунда; для локального режима — время серверной сессии.
+	-- Клиентское elapsed никогда не увеличивает допустимый бюджет очков.
+	local startedAt = racerStart[player]
+	local serverElapsed = if startedAt
+		then math.max(0, serverNow() - startedAt)
+		else math.max(0, os.clock() - (sessionStart[player] or os.clock()))
 
 	-- Отсекаем явно невозможные результаты (правила покрыты юнит-тестами).
-	if not Score.isPlausible(score, realElapsed) then
+	if not Score.isPlausible(score, serverElapsed) then
 		return
 	end
 	local current = bestScores[player] or 0
@@ -570,7 +572,10 @@ MarketplaceService.ProcessReceipt = function(receiptInfo: any)
 	end
 	local key = productKeyFor(receiptInfo.ProductId)
 	if not key then
-		return Enum.ProductPurchaseDecision.PurchaseGranted
+		-- Не подтверждаем неизвестный продукт: Roblox повторит чек, пока
+		-- разработчик не добавит соответствующий ID (покупка не теряется).
+		print("Неизвестный developer product receipt:", receiptInfo.ProductId)
+		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end
 	-- Идемпотентная и атомарная выдача: Roblox может повторно вызвать
 	-- ProcessReceipt, пока не получит PurchaseGranted. Не выдаём один чек дважды.

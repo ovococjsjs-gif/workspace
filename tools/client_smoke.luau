@@ -386,10 +386,19 @@ step("Гонка: общий раунд, живой рейтинг и магаз
 	local player = services.Players.LocalPlayer
 
 	-- Клиент сообщает прогресс, сервер принимает правдоподобные данные.
+	-- Время на сервере продвигается независимо от elapsed, присланного клиентом.
+	Mock.advance(60)
 	if progress then
 		for _, fn in ipairs(progress.OnServerEvent.__signals) do
 			fn(player, 5000, 1200, 15, false, 60)
+			-- Фальшиво огромный elapsed не должен обходить серверную проверку.
+			fn(player, 100000, 1300, 15, false, 1000000)
 		end
+	end
+	-- Пусть синтетическая клиентская симуляция продолжит сообщать тот же счёт.
+	local currentGame = Main.getState().game
+	if currentGame then
+		currentGame.score.score = 5000
 	end
 	-- Сервер рассылает рейтинг раз в секунду: прогоняем кадры.
 	for _ = 1, 80 do
@@ -399,6 +408,13 @@ step("Гонка: общий раунд, живой рейтинг и магаз
 	end
 	local standings = Main.getState().standings
 	check(#standings >= 1, "клиент получил рейтинг забега: " .. tostring(#standings) .. " игрок(ов)")
+	local myRaceScore = nil
+	for _, entry in ipairs(standings) do
+		if entry.userId == player.UserId then
+			myRaceScore = entry.score
+		end
+	end
+	check(myRaceScore == 5000, "фальшивый elapsed не обошёл серверный античит: " .. tostring(myRaceScore))
 
 	-- Второй игрок: сервер должен включить его в рейтинг, а клиент — нарисовать «призрака».
 	local rival = { UserId = 777, Name = "Соперник" }
@@ -408,6 +424,7 @@ step("Гонка: общий раунд, живой рейтинг и магаз
 			fn(rival)
 		end
 	end
+	Mock.advance(5)
 	if progress then
 		for _, fn in ipairs(progress.OnServerEvent.__signals) do
 			fn(rival, 4200, 1100, 16, false, 60, { x = 12, y = 22, z = 900 })
@@ -509,6 +526,11 @@ step("Гонка: общий раунд, живой рейтинг и магаз
 		local receiptInfo = { PlayerId = player.UserId, ProductId = 4243, PurchaseId = "test-purchase-1" }
 		local response = receipt(receiptInfo)
 		check(response == Mock.env.Enum.ProductPurchaseDecision.PurchaseGranted, "обработчик чека ответил PurchaseGranted: " .. tostring(response))
+		local unknown = receipt({ PlayerId = player.UserId, ProductId = 999999, PurchaseId = "unknown-product" })
+		check(
+			unknown == Mock.env.Enum.ProductPurchaseDecision.NotProcessedYet,
+			"неизвестный продукт не подтверждается и не теряет покупку"
+		)
 		-- Roblox может повторить один и тот же чек: повтор не должен удваивать валюту.
 		local duplicateResponse = receipt(receiptInfo)
 		check(
@@ -588,6 +610,7 @@ step("Забег дня: общий курс суток и таблица лид
 			fn(player)
 		end
 	end
+	Mock.advance(90)
 	for _ = 1, 3 do
 		for _, fn in ipairs(heartbeat.__signals) do
 			fn(1 / 60)
@@ -658,17 +681,24 @@ step("Server: приём и проверка рекорда", function()
 
 	-- Правдоподобный результат должен приняться и вернуться игроку.
 	for _, fn in ipairs(submit.OnServerEvent.__signals) do
-		fn(services.Players.LocalPlayer, 1000, 60)
+		fn(services.Players.LocalPlayer, 500, 60)
 	end
 	local fired = rawget(best, "__fired")
-	check(fired ~= nil and fired[2] == 1000, "сервер принял правдоподобный счёт и отдал рекорд")
+	check(fired ~= nil and fired[2] == 500, "сервер принял правдоподобный счёт и отдал рекорд")
 
 	-- Заведомо невозможный результат (миллион очков за секунду) — отбрасывается.
 	for _, fn in ipairs(submit.OnServerEvent.__signals) do
 		fn(services.Players.LocalPlayer, 1000000, 1)
 	end
 	local fired2 = rawget(best, "__fired")
-	check(fired2 == nil or fired2[2] == 1000, "невозможный счёт отброшен сервером")
+	check(fired2 == nil or fired2[2] == 500, "невозможный счёт отброшен сервером")
+
+	-- Фальшивое клиентское elapsed не должно раздувать серверный бюджет рекорда.
+	for _, fn in ipairs(submit.OnServerEvent.__signals) do
+		fn(services.Players.LocalPlayer, 100000, 1000000)
+	end
+	local fired3 = rawget(best, "__fired")
+	check(fired3 == nil or fired3[2] == 500, "elapsed клиента не обошёл античит рекорда")
 end)
 
 print("")
